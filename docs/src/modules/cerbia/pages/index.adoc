@@ -1,0 +1,41 @@
+= cerbia
+:description: Install CerbIA core and select optional capabilities with package extras.
+
+`cerbia` is the metadata-only installation selector for CerbIA. Installing it
+installs `cerbia-core`; it does not provide a Python import namespace. Import
+the component package that provides the capability you use.
+
+== Installation choices
+
+Install the base distribution for the core Python pipeline, or choose an extra
+for an optional integration:
+
+[source,bash]
+----
+pip install cerbia
+pip install "cerbia[cli]"
+pip install "cerbia[ml]"
+pip install "cerbia[presidio]"
+pip install "cerbia[protectai]"
+pip install "cerbia[all]"
+----
+
+The `cli`, `ml`, `presidio`, and `protectai` extras select their matching
+distributions. `all` installs every optional capability. Decisions/SystemOne
+HTTP support is included in core with no extra needed. You can also install a
+distribution directly, such as `pip install cerbia-cli` or
+`pip install cerbia-presidio`.
+
+After installing an extra, use the import namespace it supplies: `cerbia.core`,
+`cerbia.cli`, `cerbia.ml`, `cerbia.presidio`, or `cerbia.protectai`. The
+`cerbia` executable comes from `cerbia-cli`, not from a top-level Python module.
+
+The xref:main:components/scanners/decisions.adoc[Decisions/SystemOne core scanner]
+sends evidence to a configured external endpoint;
+review its data-handling and service-cost implications before enabling it.
+
+== Next steps
+
+Start with the product-wide xref:main:prerequisites.adoc[installation
+requirements] and xref:main:quickstart.adoc[quickstart]. For an overview of all
+distributions, open the xref:main:packages.adoc[package directory].

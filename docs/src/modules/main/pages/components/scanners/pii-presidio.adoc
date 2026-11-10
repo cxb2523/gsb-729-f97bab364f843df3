@@ -1,0 +1,36 @@
+= Presidio PII scanner
+:description: Detect English PII entities with the optional Presidio analyzer and spaCy model integration.
+:page-tags: Reference, Scanner, Optional integration
+
+`cerbia.presidio.scanners.PresidioPiiScanner` uses Presidio's English NLP analyzer and the `en_core_web_sm` spaCy model. Install `cerbia[presidio]` before using this class path.
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`entities`
+|all supported
+|Optional Presidio entity types to request.
+
+|`severity`
+|`HIGH`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action.
+
+|`content_types`
+|`[TEXT]`
+|Accepted content types.
+|===
+
+The scanner returns the highest Presidio confidence as risk score and exposes match spans for the detected entities. Empty text and texts without entities produce risk `0.0`.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.presidio.scanners.PresidioPiiScanner
+    init_args:
+      entities: ["EMAIL_ADDRESS", "PHONE_NUMBER"]
+----

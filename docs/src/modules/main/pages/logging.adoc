@@ -1,0 +1,50 @@
+= Logging
+:description: Configure host application logging for CerbIA's standard-library logger namespace and levels.
+:page-tags: reference, logging, observability
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: docs/content/docs/logging.mdx (local MDX; source SHA-256 recorded in legacy-routes.json).
+
+CerbIA uses Python's standard-library `logging` module.
+
+Loggers use the implicit `cerbia` namespace obtained from `logging.getLogger(__name__)`. Messages propagate normally to
+the host's handlers, and the effective levels are inherited from the host logger hierarchy. The host chooses the destination.
+
+CerbIA emits only the standard levels needed by the library:
+
+|===
+|Level |Meaning
+
+|`DEBUG` |Component events and numeric counters; messages can also include configured import paths, scanner names/IDs, and model references.
+|`INFO` |A milestone or fixed progress message that is safe to log.
+|`WARNING` |A non-fatal condition caused an item or optional operation to be skipped.
+|`ERROR` |A safe summary of a failed or blocked operation when the caller needs an observable failure record.
+|===
+
+== Host configuration
+
+The host owns handlers, formatters, destinations, and filtering. A host can configure them with the standard library,
+for example:
+
+[source,python]
+----
+import logging
+
+logging.basicConfig(
+    level=logging.WARNING,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+----
+
+Applications embedding CerbIA should configure the `cerbia` logger or the root logger according to their logging policy.
+Importing and reusing the library does not configure logging, replace existing handlers, force a global level, or select
+a destination for an embedded host.
+
+== CLI behavior
+
+The standalone CLI may configure logging when an explicit `--log-level` or `--log-file` option is supplied. With neither
+option, it preserves an existing host logging setup when one is present. If the standalone process has no root handlers,
+it installs an `INFO` stderr handler using the standard CLI format. This default differs from embedded use, where
+library imports have no logging-configuration side effects and do not install that handler.
+Embedded applications own their logging configuration.

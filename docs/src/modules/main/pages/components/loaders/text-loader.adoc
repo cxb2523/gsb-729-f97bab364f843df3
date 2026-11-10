@@ -1,0 +1,42 @@
+= TextLoader
+:description: Load one string or an ordered list of inline strings as CerbIA entries.
+:page-tags: reference, components, loaders
+:repo-url: https://github.com/InditexTech/cerbia
+
+// Source: docs/content/docs/components/loaders/text-loader.mdx; implementation: packages/cerbia-core/src/cerbia/core/loaders/text.py.
+
+`cerbia.core.loaders.TextLoader` converts inline strings into entries. It is a
+simple loader for application-provided values, tests, and command-line input.
+
+[source,python]
+----
+from cerbia.core.loaders import TextLoader
+
+entries = TextLoader(texts=["first", "second"]).load()
+----
+
+== Parameters
+
+|===
+|Parameter |Type |Meaning
+
+|`texts` |`str \| list[str]` |One string or an ordered list of strings to load.
+|===
+
+A single string becomes a one-item list. The loader emits exactly one entry for
+each input string, in order. Each entry uses `inline[index]` as its `source`; it
+has no field path and uses the default unknown content type.
+
+[source,yaml]
+----
+loaders:
+  - loader: cerbia.core.loaders.TextLoader
+    init_args:
+      texts:
+        - "Text to scan"
+        - "Another entry"
+----
+
+`cerbia scan --text` builds an equivalent loader and replaces configured loaders
+for that invocation. See xref:components/loaders/file-loader.adoc[FileLoader] for
+filesystem input.

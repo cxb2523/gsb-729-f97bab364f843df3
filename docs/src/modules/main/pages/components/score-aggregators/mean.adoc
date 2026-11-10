@@ -1,0 +1,18 @@
+= Mean score aggregator
+:description: Average all severity-weighted blocking scores to produce the aggregate gate score.
+:page-tags: Reference, Score aggregator
+
+`cerbia.core.score_aggregators.MeanScoreAggregator` averages every severity-weighted blocking score.
+
+[source,text]
+----
+aggregate = sum(scores) / len(scores)
+----
+
+For example, `[0.20, 0.80]` produces `0.50`; an empty list produces `0.0`. This strategy reduces the effect of one isolated score, so choose a threshold that matches the desired tolerance for individual high-risk findings.
+
+[source,yaml]
+----
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MeanScoreAggregator
+----

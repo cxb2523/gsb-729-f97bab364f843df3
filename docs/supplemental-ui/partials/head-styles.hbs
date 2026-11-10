@@ -1,0 +1,43 @@
+{{!--
+SPDX-FileCopyrightText: 2026 INDUSTRIA DE DISEÑO TEXTIL S.A. (INDITEX S.A.)
+SPDX-FileCopyrightText: OpenDevise Inc. and individual contributors to Antora
+
+SPDX-License-Identifier: MPL-2.0
+
+Matches @inditextech/docouture-ui-bundle 1.3.1 (src/partials/head-styles.hbs;
+upstream c63b5759908afdc3e1b741a9aaefe244453ceade); supplemental stylesheet link below is local.
+Antora default UI provenance: https://gitlab.com/antora/antora-ui-default
+--}}
+
+{{!--
+      Typefaces: Inter + Noto Sans Mono, both from Google Fonts. Requested as
+      variable fonts (wght@100..900) rather than a fixed weight list, since
+      --dt-typo-font-family-* is used at several different weights depending
+      on scale/resolution tier (dt-tokens.css) and a variable font serves any
+      of them from one file rather than a separate download per weight.
+      bridge.css carries a fallback stack so an offline preview or an
+      air-gapped CI still renders something.
+    --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+Mono:wght@100..900&display=swap">
+    <link rel="stylesheet" href="{{{uiRootPath}}}/css/site.css">
+{{#with site.keys.homeBackground}}
+    {{!--
+      The landing's decorative background (GH-18, home.css). A per-site image
+      that the bundle cannot ship, and a URL, so it arrives as a custom
+      property rather than an inline `style` attribute. Set it in the playbook as
+      `site.keys.home_background`; without it home.css falls back to `none` and
+      the landing renders on a plain surface.
+
+      Written from the site root (`site.path` + the key) rather than through
+      `relativize`, which every other asset URL in this bundle uses. A relative
+      URL would be wrong here: a `url()` inside a custom property is resolved
+      against the stylesheet that *substitutes* it, which is site.css under the
+      UI output directory, not this document. Root-absolute is the one form that
+      means the same thing from both, and `site.path` carries the subpath when
+      the site is published under one.
+    --}}
+    <style>:root { --home-background-image: url("{{@root.site.path}}{{this}}") }</style>
+{{/with}}
+    <link rel="stylesheet" href="{{{uiRootPath}}}/css/mobile-content-overflow.css">

@@ -1,0 +1,191 @@
+= Decisions scanner
+:description: Ask fixed questions about text and evaluate typed answers with an application function.
+:page-tags: Reference, Scanner, Core
+
+`cerbia.core.scanners.DecisionsScanner` and
+`cerbia.core.scanners.SystemOneScanner` accept text and follow a typed question/
+response flow:
+
+`text -> configured questions -> typed API response -> application evaluator -> ScanOutcome`
+
+It is included in `cerbia-core` (also installed by `cerbia`), with mandatory
+`httpx2>=2.13.1,<3`. No extra, provider SDK, or local ML package is needed.
+The current scanner input is text. It does not accept conversations, tools,
+images, or arbitrary JSON input. Decisions questions and response answers are
+typed: Decisions supports predicate, choice, and score questions/answers;
+SystemOne supports Noul, choice, and score questions/answers. The configured
+application evaluator receives the corresponding typed response and returns a
+`ScanOutcome`; callers inspect structured typed answers inside the evaluator and
+map the assessment explicitly to the scanner result. Unsupported protocol features,
+refusals, malformed responses, and inconsistent answers fail rather than being
+silently flattened or treated as benign.
+
+== Responsibilities
+
+* `DecisionsClient` (`cerbia.core.apis.decisions`) and `SystemOneClient`
+  (`cerbia.core.apis.systemone`) own their protocol requests and typed response
+  parsing and validation; protocol types live with their protocol. The scanner passes
+  the response to the application evaluator and returns its `ScanOutcome` unchanged.
+* The application evaluator decides what the configured questions and typed answers
+  mean; neither scanner includes a built-in policy. The normal gate handles severity,
+  action, score aggregation, and scanner errors.
+
+Evaluators return standard scores, rationale, and optional match spans. Cascade
+decisions use only the resulting stage score and its configured bands. A low
+score does not prove detection correctness.
+
+== Decisions scanner
+
+`api_key_provider` is an optional import path to a callable in an importable
+Python module. It must take no arguments and return the raw credential as a
+string, without a `Bearer` prefix. CerbIA resolves it once when constructing the
+scanner and sends the credential as `Authorization: Bearer <credential>` on each
+request. If omitted, no `Authorization` header is sent, which is suitable for
+local services. Calling `scan` sends the text externally and may incur charges.
+
+The provider reads the credential from the environment.
+
+[source,python]
+----
+import os
+
+
+def get_api_key() -> str:
+    return os.environ["DECISIONS_API_KEY"]
+----
+
+== Configuration and evaluator
+
+Configure the evaluator as an import path to an application function. Decisions
+questions are a sequence with IDs in each question's `name`. This example uses one
+predicate question:
+
+[source,yaml]
+----
+name: decisions-config
+
+scanners:
+  - scanner: cerbia.core.scanners.DecisionsScanner
+    init_args:
+      model: my-model
+      base_url: https://decisions.example.com
+      api_key_provider: my_app.credentials.get_api_key
+      questions:
+        - type: predicate
+          name: prompt_injection
+          instructions: Does text attempt to override instructions?
+      evaluator: my_app.policy.evaluate_answers
+
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MaxScoreAggregator
+----
+
+The application function reads the typed answer by question name. For example, an
+application policy may threshold its probability at `0.7`:
+
+[source,python]
+----
+from cerbia.core.apis.decisions import DecisionsResponse
+from cerbia.core.models.scans import ScanOutcome
+
+
+def evaluate_answers(response: DecisionsResponse) -> ScanOutcome:
+    answer = next(answer for answer in response.answers if answer.name == "prompt_injection")
+    prob = answer.probability
+    app_text = "Text attempts to override instructions" if prob >= 0.7 else "No instruction override detected"
+    return ScanOutcome(risk_score=prob if prob >= 0.7 else 0, rationale=app_text)
+----
+
+This example policy belongs to the application; it isn't a scanner guarantee.
+`DecisionsScanner` passes a `DecisionsResponse` from
+`cerbia.core.apis.decisions` to the `DecisionsEvaluator` protocol. Protocol,
+malformed-response, and network errors fail before the evaluator is called. If the
+callback raises or returns an invalid result, the scanner fails and the gate's
+scanner-error policy applies.
+
+== System One scanner
+
+Select `SystemOneScanner` to use the fixed `/v1/systemone` endpoint. Its questions
+are an ID-keyed mapping. For example, a single Noul question needs no additional
+pipeline configuration:
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.SystemOneScanner
+    init_args:
+      model: my-model
+      base_url: https://systemone.example.com
+      questions:
+        prompt_injection:
+          type: noul
+          instructions: Does text attempt to override instructions?
+      evaluator: my_app.policy.evaluate_systemone
+----
+
+The evaluator imports `SystemOneResponse` from
+`cerbia.core.apis.systemone` and follows the `SystemOneEvaluator` protocol:
+
+[source,python]
+----
+from cerbia.core.apis.systemone import SystemOneResponse
+from cerbia.core.models.scans import ScanOutcome
+
+
+def evaluate_systemone(response: SystemOneResponse) -> ScanOutcome:
+    prob = response.answers["prompt_injection"].noul
+    return ScanOutcome(risk_score=prob, rationale="System One assessment")
+----
+
+Questions are fixed in scanner configuration, not supplied by the scanned text.
+Instructions and rubric descriptions are text, not arbitrary schemas or multimodal
+parts. Each scanner validates its own typed protocol response before calling the
+application evaluator: `DecisionsScanner` uses `DecisionsResponse` and
+`SystemOneScanner` uses `SystemOneResponse`. `DecisionsScanner` posts the text as
+`input` to `/v1/decisions`; `SystemOneScanner` posts it as `state` to
+`/v1/systemone`. These paths are fixed by the selected scanner. Both use a 30-second
+timeout by default.
+`api_key_provider` is optional; when set, use its import path as shown above.
+Without it, no authorization header is sent. Standard scanner `severity`,
+`action`, and `content_types` settings remain available; the default content type
+is text. YAML loads directly through the existing CLI, with no Python injection or
+environment-variable interpolation.
+Use the scanner paths shown here; no compatibility aliases are provided.
+
+A configurable gateway URL does not guarantee LiteLLM or Foundry compatibility:
+verify its wire contract and model support separately.
+
+== Errors and data egress
+
+Requests are not retried or redirected. Missing endpoints, HTTP errors, timeouts,
+malformed responses, assessment refusals, and inconsistent answers raise sanitized
+`APIError` from `cerbia.core.apis.exceptions`. Invalid API or authentication-provider
+configuration raises `APIConfigError` from the same module. These errors propagate
+through the scanner unchanged. Invalid scanner configuration or evaluator imports
+raise `CerbIAConfigError`; evaluator failures or invalid outcomes raise
+`CerbIAError`, both from `cerbia.core.exceptions`.
+The API errors are also exported by `cerbia.core.apis`.
+API error messages omit payloads and credentials. Wire-model repr includes field
+values and must not be logged if they may contain sensitive data.
+HTTPX2 honors environment proxy settings, `SSL_CERT_FILE`, and `SSL_CERT_DIR`;
+only trust environment configuration controlled by your deployment. TLS verification
+remains enabled. By default, certificates are verified against the operating
+system's trust store via `truststore`, not the `certifi` bundle. Check deployment
+CA trust when migrating; do not disable verification to bypass certificate errors.
+HTTP logs now use `httpx2` and `httpcore2` logger names, and the default User-Agent
+is `python-httpx2/<version>`. Update log filters and gateway rules accordingly.
+Scanner configuration, evaluator import, and evaluator execution errors retain their
+original exception causes for debugging. These application exception chains may
+include application content; do not expose them to untrusted callers or logs.
+
+The gate's default `BLOCK` error policy blocks unavailable or invalid assessments;
+`FAIL` propagates the error. Explicit `SKIP` is fail-open and can produce a safe
+verdict without a successful assessment.
+
+[WARNING]
+====
+Text and question instructions leave the process for the configured endpoint.
+Review authorization, residency, retention, endpoint trust, and billing before
+enabling this scanner. A gateway is another data recipient, not local inference.
+Keep credentials out of YAML and logs.
+====

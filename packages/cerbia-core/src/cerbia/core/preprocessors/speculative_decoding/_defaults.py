@@ -1,0 +1,26 @@
+import re
+
+from ._types import OutputPolicy
+
+_TEXT_OUTPUT_PATTERN = re.compile(r"^[\x09\x0a\x0d\x20-\x7e\u00a0-\U0010ffff]+$")
+
+DEFAULT_MAX_DEPTH = 5
+DEFAULT_BEAM_WIDTH = 4
+DEFAULT_MAX_NODES = 32
+DEFAULT_MAX_SEGMENTS = 20
+DEFAULT_IMPROVEMENT_MIN_DELTA = 0.05
+DEFAULT_IMPROVEMENT_MIN_PVALUE = 0.05
+
+DEFAULT_ACCEPTANCE_MIN_CHI_SQUARED_PVALUE = 0.10
+DEFAULT_ACCEPTANCE_MIN_TEXT_LENGTH = 16
+DEFAULT_ACCEPTANCE_MIN_PRINTABLE_RATIO = 0.85
+DEFAULT_ACCEPTANCE_MAX_ENTROPY_BITS = 7.5
+
+DEFAULT_TEXT_OUTPUT = OutputPolicy(expected_pattern=_TEXT_OUTPUT_PATTERN, require_utf8=False)
+DEFAULT_RELAXED_OUTPUT = OutputPolicy(
+    min_printable_ratio=0.5,
+    min_text_length=2,
+    expected_pattern=_TEXT_OUTPUT_PATTERN,
+    require_utf8=False,
+)
+DEFAULT_BINARY_OUTPUT = OutputPolicy(min_printable_ratio=0.0, min_text_length=0)

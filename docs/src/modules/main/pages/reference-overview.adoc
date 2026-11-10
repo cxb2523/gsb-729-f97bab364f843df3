@@ -1,0 +1,44 @@
+= Reference
+:description: CerbIA configuration, command, component, and package reference.
+:page-tags: reference, configuration, cli
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: README.md Documentation and Features; docs/content/docs/meta.json navigation inventory.
+
+Use this section to look up CerbIA's configuration format, command behavior,
+logging, language support, and pipeline components. The main reference pages
+describe product-wide behavior. Package-specific APIs and installation details
+belong in their package modules, so they can stay close to each artifact rather
+than being copied here.
+
+== Product reference
+
+* xref:configuration.adoc[Configuration] describes the YAML gate definition.
+* xref:cli.adoc[CLI] documents command-line usage.
+* xref:gate.adoc[Gates] explains evaluation and verdicts.
+* xref:logging.adoc[Logging] and xref:i18n.adoc[Internationalization] cover
+  related runtime settings and language patterns.
+* xref:packages.adoc[Package modules] links to artifact-specific pages and APIs.
+
+== Pipeline components
+
+* xref:components/loaders.adoc[Loaders] and
+  xref:components/preprocessors.adoc[Preprocessors] cover input and
+  normalization stages.
+* xref:components/scanners.adoc[Scanners] and
+  xref:components/score-aggregators.adoc[Score aggregators] cover inspection
+  and verdict scoring.
+* xref:components/custom-components.adoc[Custom components] describes
+  extension points.
+
+== Package modules
+
+The package pages describe each distribution and its optional dependencies:
+
+* xref:cerbia:index.adoc[CerbIA]
+* xref:cerbia-core:index.adoc[CerbIA Core]
+* xref:cerbia-cli:index.adoc[CerbIA CLI]
+* xref:cerbia-ml:index.adoc[CerbIA ML]
+* xref:cerbia-presidio:index.adoc[CerbIA Presidio]
+* xref:cerbia-protectai:index.adoc[CerbIA ProtectAI]

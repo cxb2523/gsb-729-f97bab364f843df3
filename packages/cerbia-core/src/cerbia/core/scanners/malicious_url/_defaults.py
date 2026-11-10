@@ -1,0 +1,73 @@
+DEFAULT_SUSPICIOUS_TLDS = frozenset(
+    {
+        "tk",
+        "ml",
+        "ga",
+        "cf",
+        "gq",
+        "xyz",
+        "top",
+        "click",
+        "link",
+        "buzz",
+        "rest",
+        "cam",
+        "icu",
+        "monster",
+    }
+)
+
+DEFAULT_SHORTENER_DOMAINS = frozenset(
+    {
+        "bit.ly",
+        "tinyurl.com",
+        "t.co",
+        "goo.gl",
+        "ow.ly",
+        "is.gd",
+        "buff.ly",
+        "rebrand.ly",
+        "bl.ink",
+        "short.io",
+        "rb.gy",
+        "shorturl.at",
+        "tiny.cc",
+    }
+)
+
+DEFAULT_POPULAR_DOMAINS = frozenset(
+    {
+        "google.com",
+        "facebook.com",
+        "amazon.com",
+        "apple.com",
+        "microsoft.com",
+        "twitter.com",
+        "instagram.com",
+        "linkedin.com",
+        "netflix.com",
+        "paypal.com",
+        "github.com",
+        "stackoverflow.com",
+        "reddit.com",
+        "youtube.com",
+        "whatsapp.com",
+        "dropbox.com",
+        "gmail.com",
+        "outlook.com",
+        "yahoo.com",
+        "ebay.com",
+        "stripe.com",
+        "slack.com",
+        "zoom.us",
+        "salesforce.com",
+        "adobe.com",
+        "spotify.com",
+        "uber.com",
+        "airbnb.com",
+        "chase.com",
+        "bankofamerica.com",
+        "wellsfargo.com",
+        "citibank.com",
+    }
+)

@@ -1,0 +1,66 @@
+= Scanners
+:description: Browse scanners for hidden text, prompt injection, PII, secrets, URLs, keywords, and other findings.
+:page-tags: Reference, Components
+
+Scanners inspect one entry at a time and return a `ScanOutcome` with a risk score, rationale, and optional match spans. The pipeline adds each scanner's configured severity and action to form a finding. Only positive `BLOCK` findings are eligible for numerical decisions; other findings remain visible for review.
+
+Every scanner accepts `severity`, `action`, and `content_types`, although their defaults differ. `content_types: null` accepts every entry type. In a simple gate, a known-type mismatch is skipped and recorded; `ContentType.UNKNOWN` is eligible for all scanners. In a cascade, a known-type mismatch from a required scanner is an `unsupported_content` operational fault: `fail` raises it, `block` returns an unsafe operational verdict, remaining scanners in that stage do not run, and later stages are `not_reached`. An `UNKNOWN` entry type reaches scanners and follows the same score-only stage decisions as other eligible inputs.
+
+[options="header"]
+|===
+|Reference |Primary use |Default action
+
+|xref:components/scanners/canary-leak.adoc[Canary leak]
+|Detect protected marker tokens.
+|`BLOCK`
+
+|xref:components/scanners/invisible-text.adoc[Invisible text]
+|Find hidden Unicode instructions.
+|`BLOCK`
+
+|xref:components/scanners/decisions.adoc[Decisions and SystemOne]
+|Evaluate typed evidence through a configured external HTTP service.
+|`BLOCK`
+
+|xref:components/scanners/keyword.adoc[Keyword]
+|Match suspicious patterns and code-oriented keywords.
+|`BLOCK`
+
+|xref:components/scanners/pii.adoc[PII]
+|Detect regex-based personal-data patterns.
+|`WARN`
+
+|xref:components/scanners/pii-presidio.adoc[Presidio PII]
+|Detect English NLP entities.
+|`BLOCK`
+
+|xref:components/scanners/prompt-injection.adoc[Prompt injection]
+|Detect pattern-based injection attempts.
+|`BLOCK`
+
+|xref:components/scanners/prompt-injection-protectai.adoc[ProtectAI prompt injection]
+|Classify injection with an optional local model.
+|`BLOCK`
+
+|xref:components/scanners/secrets.adoc[Secret]
+|Detect credentials and high-entropy values.
+|`BLOCK`
+
+|xref:components/scanners/url-malicious.adoc[Malicious URL]
+|Apply suspicious-URL heuristics.
+|`BLOCK`
+
+|xref:components/scanners/url-allow-list.adoc[URL allowlist]
+|Require URLs to match approved patterns.
+|`BLOCK`
+
+|xref:components/scanners/url-deny-list.adoc[URL denylist]
+|Flag URLs that match blocked patterns.
+|`BLOCK`
+
+|xref:components/scanners/xss.adoc[XSS]
+|Detect HTML and script injection vectors.
+|`BLOCK`
+|===
+
+Run preprocessors before scanners when text may use encoding or whitespace to hide its content. See xref:configuration.adoc[Configuration] for scanner records and xref:gate.adoc[Gates] for verdict calculation.

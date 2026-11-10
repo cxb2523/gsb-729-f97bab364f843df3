@@ -1,0 +1,67 @@
+= cerbia-ml
+:description: Load pinned model artifacts and connect text-classification adapters through the optional cerbia.ml package.
+
+`cerbia-ml` provides `cerbia.ml`, an optional runtime layer for pinned model
+artifacts and text-classification adapters. Installing it alone does not add a
+CLI command or a scanner to a core configuration.
+
+== Install
+
+[source,bash]
+----
+pip install cerbia-ml
+----
+
+The distribution depends on `cerbia-core` and the ONNX Runtime support provided
+through Optimum.
+
+== Resolve model artifacts
+
+`ArtifactCoords` identifies an artifact by repository reference, a required
+40-character revision, and optional subfolder or filename. The `ArtifactSource`
+protocol resolves coordinates to a local path and reports whether an artifact
+is already available. `HuggingFaceHubSource` checks the Hugging Face cache and
+can fetch a pinned snapshot, limiting the download to a requested subfolder or
+file when those coordinates are set.
+
+[source,python]
+----
+from cerbia.ml.artifacts import HuggingFaceHubSource
+from cerbia.ml.models import ArtifactCoords
+
+artifact = ArtifactCoords(
+    ref="ORG/MODEL",
+    revision="_40_CHARACTER_COMMIT_",
+    filename="model.onnx",
+)
+source = HuggingFaceHubSource()
+if not source.is_available(artifact):
+    local_path = source.fetch(artifact)
+----
+
+Replace `ORG/MODEL` with the repository and `_40_CHARACTER_COMMIT_` with its
+immutable commit. The revision must contain exactly 40 lowercase hexadecimal
+characters.
+
+== Classify text
+
+`HuggingFaceClassifierAdapter` loads a tokenizer and an ONNX sequence
+classification model, then returns validated results for a batch of strings.
+Its constructor accepts model and tokenizer artifact coordinates, an adapter
+configuration, and `local_files_only`, which defaults to `true`.
+
+[source,python]
+----
+from cerbia.ml.adapters.classifiers.huggingface_classifier import (
+    HuggingFaceClassifierAdapter,
+    HuggingFaceClassifierAdapterConfig,
+)
+----
+
+With `local_files_only: true`, the required model and tokenizer assets must
+already be cached. Set it to `false` only when runtime downloads are suitable
+for the deployment. The optional
+xref:cerbia-protectai:index.adoc[cerbia-protectai integration] uses this package
+for model and tokenizer loading. See the product-wide
+xref:main:configuration.adoc[configuration reference] and
+xref:main:quickstart.adoc[quickstart] for pipeline setup.

@@ -1,0 +1,46 @@
+.home--single .home__main {
+  text-align: start;
+}
+
+@media screen and (max-width: 512px) {
+  .search-fab {
+    display: none;
+  }
+
+  .header-toolbar__search-trigger {
+    display: inline-flex;
+  }
+
+  .doc .listingblock > .content pre,
+  .doc .literalblock > .content pre {
+    scrollbar-color: var(--dt-color-content-low) var(--dt-color-bg-low);
+    scrollbar-width: auto;
+  }
+
+  .doc .listingblock > .content pre::-webkit-scrollbar,
+  .doc .literalblock > .content pre::-webkit-scrollbar {
+    height: var(--dt-size-50);
+  }
+
+  .doc .listingblock > .content pre::-webkit-scrollbar-track,
+  .doc .literalblock > .content pre::-webkit-scrollbar-track {
+    background: var(--dt-color-bg-low);
+  }
+
+  .doc .listingblock > .content pre::-webkit-scrollbar-thumb,
+  .doc .literalblock > .content pre::-webkit-scrollbar-thumb {
+    background: var(--dt-color-content-low);
+  }
+
+  .doc .listingblock > .content::after,
+  .doc .literalblock > .content::after {
+    align-self: flex-end;
+    background: var(--dt-color-bg-low);
+    color: var(--dt-color-content-low);
+    content: "Swipe or scroll →";
+    font: var(--dt-typo-label-l);
+    margin: 0 var(--dt-size-100) var(--dt-size-50);
+    padding: var(--dt-size-25) var(--dt-size-50);
+    pointer-events: none;
+  }
+}

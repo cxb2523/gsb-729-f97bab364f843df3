@@ -1,0 +1,123 @@
+# SPDX-FileCopyrightText: 2026 INDUSTRIA DE DISEÑO TEXTIL S.A. (INDITEX S.A.)
+# SPDX-License-Identifier: Apache-2.0
+
+name: code-uv-python-PR-verify
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-uv-python-pr-verify-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_TYPE: ${{ vars.PROJECT_TYPE }}
+  WORKING_DIRECTORY: ${{ vars.WORKING_DIRECTORY }}
+  ASDF_BRANCH_VERSION: '0.18.0'
+
+jobs:
+  verify:
+    name: Code / Verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Resolve governed project type
+        shell: bash
+        run: |
+          set -euo pipefail
+          descriptor="$GITHUB_WORKSPACE/.github/inditextech-ci-python.json"
+          if [[ ! -f "$descriptor" ]]; then
+            echo "::error title=Missing descriptor::.github/inditextech-ci-python.json not found."
+            exit 1
+          fi
+          project_type="$(jq -r '.project_type // empty' "$descriptor")"
+          case "$project_type" in
+            single|monorepo|workspaces) ;;
+            *)
+              echo "::error title=Invalid project type::Descriptor .project_type must be single, monorepo, or workspaces."
+              exit 1
+              ;;
+          esac
+          # The descriptor's vocabulary is the adapter's: `monorepo` and
+          # `workspaces` are the same shape, and the runtime contract names it
+          # `workspaces` while the governance contract calls `monorepo`.
+          if [[ "$project_type" == "monorepo" ]]; then
+            project_type="workspaces"
+          fi
+          workdir="${WORKING_DIRECTORY:-$(jq -r '.working_directory // empty' "$descriptor")}"
+          case "$workdir" in
+            ""|/*|..|../*|*/..|*/../*)
+              echo "::error title=Invalid working directory::WORKING_DIRECTORY must be a non-empty relative repository path." >&2
+              exit 1
+              ;;
+          esac
+          if [[ ! -d "$workdir" ]]; then
+            echo "::error title=Missing working directory::'${workdir}' is not a directory in this checkout." >&2
+            exit 1
+          fi
+          echo "PROJECT_TYPE=$project_type" >> "$GITHUB_ENV"
+          echo "WORKING_DIRECTORY=${workdir}" >> "$GITHUB_ENV"
+
+      - name: Read governed tool versions
+        id: tool-versions
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Evq '^[a-zA-Z0-9_-]+ [a-zA-Z0-9._+-]+$' .tool-versions; then
+            echo "::error title=Invalid tool-versions::${WORKING_DIRECTORY}/.tool-versions is malformed."
+            exit 1
+          fi
+          {
+            echo "tool_versions<<EOF"
+            awk '1' .tool-versions
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up governed Python toolchain
+        uses: InditexTech/gh-actions/python-toolchain@80ca79bcb04379e4fed8b91a55aa15dc6b8b638a
+        with:
+          tool-versions: ${{ steps.tool-versions.outputs.tool_versions }}
+          asdf-version: ${{ env.ASDF_BRANCH_VERSION }}
+          working-directory: ${{ env.WORKING_DIRECTORY }}
+
+      - name: Verify, test, and build
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv lock --check
+
+          case "$PROJECT_TYPE" in
+            single)
+              uv sync --frozen --all-extras --all-groups
+              uv run --no-sync ruff format --check .
+              uv run --no-sync ruff check .
+              uv run --no-sync ty check
+              uv run --no-sync pytest
+              uv build --out-dir dist
+              ;;
+            workspaces)
+              uv sync --frozen --all-extras --all-groups --all-packages
+              uv run --no-sync --all-packages ruff format --check .
+              uv run --no-sync --all-packages ruff check .
+              uv run --no-sync --all-packages ty check
+              uv run --no-sync --all-packages pytest
+              uv build --all-packages --out-dir dist
+              ;;
+            *)
+              echo "::error title=Invalid project type::PROJECT_TYPE must be single or workspaces."
+              exit 1
+              ;;
+          esac

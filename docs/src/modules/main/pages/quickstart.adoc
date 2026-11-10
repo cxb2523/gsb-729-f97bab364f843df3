@@ -1,0 +1,42 @@
+= Getting started
+:description: Build and run a first CerbIA pipeline from loaders, scanners, and a YAML configuration.
+:page-tags: getting started, quickstart, cli
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: docs/content/docs/getting-started.mdx (local MDX; source SHA-256 recorded in legacy-routes.json).
+
+CerbIA evaluates content through a configured pipeline:
+
+*loaders → preprocessors → SimpleGate (scanners → score aggregator → verdict)*
+
+|===
+|Component |Responsibility
+
+|xref:components/loaders.adoc[Loaders] |Produce entries from configured input sources.
+|xref:components/preprocessors.adoc[Preprocessors] |Transform or derive entries before scanning.
+|xref:gate.adoc[SimpleGate] |Runs compatible scanners, applies their actions and severities, and returns a verdict for each entry.
+|xref:components/scanners.adoc[Scanners] |Inspect entry content and report a risk score, rationale, and optional match locations.
+|xref:components/score-aggregators.adoc[Score aggregators] |Combine the severity-weighted scores of blocking findings for the gate.
+|===
+
+See xref:architecture.adoc[Architecture] for the complete entry lifecycle and
+result model.
+
+Install the CLI and validate the repository's example configuration:
+
+[source,bash]
+----
+pip install "cerbia[cli]"
+cerbia validate examples/cli-usage/simple.cerbia.yaml
+cerbia scan --config examples/cli-usage/simple.cerbia.yaml --text "A short message"
+----
+
+`scan` needs configured loaders or at least one `--text` or `--file` argument.
+It exits `0` for safe results, `1` for unsafe results, and `2` for configuration
+or handled execution failures. A missing `--file` path currently yields no
+entry, which can result in a safe empty scan.
+
+Continue with xref:configuration.adoc[Configuration].
+xref:packages.adoc[Packages] explains the optional ML, Presidio, and ProtectAI
+boundaries.

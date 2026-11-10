@@ -1,0 +1,17 @@
+{
+  "dependency_ecosystem": "pip",
+  "project_type": "monorepo",
+  "release": {
+    "packages": [
+      "cerbia",
+      "cerbia-cli",
+      "cerbia-core",
+      "cerbia-ml",
+      "cerbia-presidio",
+      "cerbia-protectai"
+    ],
+    "strategy": "locked-step"
+  },
+  "schema_version": 1,
+  "working_directory": "."
+}

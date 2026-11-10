@@ -1,0 +1,52 @@
+= Keyword scanner
+:description: Match multilingual and code-oriented suspicious patterns after Unicode and leetspeak normalization.
+:page-tags: Reference, Scanner
+
+`cerbia.core.scanners.KeywordScanner` combines registered language patterns with code-oriented patterns to identify suspicious instructions and evasion text. It normalizes Unicode and common leetspeak substitutions before matching, which makes it useful after decoding and whitespace preprocessing.
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`languages`
+|all registered
+|Language packs to load.
+
+|`extra_patterns`
+|`null`
+|Additional `(name, regex)` pattern pairs.
+
+|`match_strategy`
+|`SEARCH`
+|`SEARCH` finds one occurrence, `ALL` finds all non-overlapping occurrences, and `FULL_MATCH` requires the whole text to match.
+
+|`redact`
+|`false`
+|Replaces matched snippets in the rationale with `[REDACTED]`.
+
+|`severity`
+|`HIGH`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action.
+
+|`content_types`
+|`[TEXT]`
+|Accepted content types.
+|===
+
+The score starts at `0.80` and increases by `0.05` per match, capped at `1.0`. For `SEARCH` and `ALL`, matches found in registered defensive context are excluded. `FULL_MATCH` does not apply the defensive-context exclusion.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.KeywordScanner
+    init_args:
+      languages: ["en", "es"]
+      match_strategy: all
+      redact: true
+----
+
+See xref:i18n.adoc[Internationalization] for language-pack selection.

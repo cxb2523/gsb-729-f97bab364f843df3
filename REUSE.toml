@@ -1,0 +1,34 @@
+version = 1
+SPDX-PackageName = "cerbia"
+SPDX-PackageSupplier = "2026 INDUSTRIA DE DISEÑO TEXTIL S.A. (INDITEX S.A.)"
+SPDX-PackageDownloadLocation = "https://github.com/InditexTech/cerbia"
+
+[[annotations]]
+path = [
+    "repolinter.json",
+    "NOTICE",
+    ".gitignore",
+    ".github/CODEOWNERS",
+    ".github/inditextech-ci-python.json",
+    ".github/inditextech-ci-sync-manifest.json",
+    ".pre-commit-config.yaml",
+    ".python-version",
+    ".sync-exclude",
+    ".tool-versions",
+    "Makefile",
+    "CHANGELOG.md",
+    "pyproject.toml",
+    "uv.lock",
+    "docs/**",
+    "examples/**",
+    "packages/**",
+    "scripts/**",
+]
+SPDX-FileCopyrightText = "2026 INDUSTRIA DE DISEÑO TEXTIL S.A. (INDITEX S.A.)"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "THIRD-PARTY-LICENSES/**"
+precedence = "override"
+SPDX-FileCopyrightText = "NOASSERTION"
+SPDX-License-Identifier = "Apache-2.0"

@@ -1,0 +1,149 @@
+= Gates
+:description: Understand how simple and cascade gates turn scanner findings into an allow or block verdict.
+:page-tags: reference, gate, verdict
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: docs/content/docs/gate.mdx (local MDX; source SHA-256 recorded in legacy-routes.json).
+
+== What are gates
+
+A gate checks one entry and returns a verdict: allow it or block it. A simple
+gate checks one scanner list; a cascade checks ordered stages that can allow,
+block, or defer to the next stage. Choose a simple gate for one round of checks
+and a cascade when checks need ordered decision points. An early cascade allow
+ends evaluation, so later stages do not provide checks for that entry.
+
+The runner calls the same `SecurityGate` protocol for either kind of gate and
+gets a `GateVerdict`. You do not need to implement or configure that protocol
+directly; see xref:architecture.adoc[Architecture] for where the gate fits in
+the pipeline.
+
+=== Results
+
+A verdict contains `is_safe`, `score`, `rationale`, `findings`, and any skipped
+scanners. A cascade also returns ordered stage summaries. Each finding appears
+once in the flat findings list; cascade findings identify their owning stage,
+while simple findings have no stage. Simple results serialize `stages: null`.
+Top-level result data can include entry text and finding rationale.
+
+=== Errors shared by both gate types
+
+Scanner errors follow the configured `on_scanner_error` policy. The available
+policies depend on gate type: simple gates support `fail`, `block`, and `skip`;
+cascades support `fail` and `block`. The sections below explain their effects
+on scanning and the verdict. See xref:configuration.adoc[Configuration] for
+defaults and YAML fields.
+
+== Simple Gates
+
+A simple gate runs one ordered scanner list. It records findings, combines
+eligible blocking risk, and returns one verdict for the entry.
+
+[mermaid]
+....
+flowchart LR
+accTitle: Simple gate combines one scanner group into one verdict
+accDescr: One scanner group checks the entry and contributes findings to a combined score. The score is compared with the threshold, producing one terminal allow or block decision.
+    A[Entry] --> B[One scanner group]
+    B --> C[Combined score]
+    C --> D{Score >= threshold?}
+    D -->|Yes| E[Block]
+    D -->|No| F[Allow]
+....
+
+=== Findings and score
+
+A scanner reports its risk score, rationale, and optional match spans. The gate
+adds scanner identity, display name, severity, and action to create a finding.
+Only positive-risk `BLOCK` findings contribute to the aggregate, using
+`risk_score × severity.weight`. `WARN` and `PASS` findings remain available for
+review but do not affect the score. The configured aggregator combines eligible
+scores.
+
+The entry blocks when the aggregate is greater than or equal to `threshold`.
+With no eligible positive-risk `BLOCK` findings, the score is `0` and the entry
+is allowed, even at threshold `0`, unless a blocking scanner error occurred. See
+xref:components/score-aggregators.adoc[Score aggregators] for the available
+combination strategies.
+
+=== Scanner routing and early stop
+
+When an entry's known content type is not accepted by a scanner, a simple gate
+skips that scanner and records the reason; it creates no finding and changes no
+score. An `unknown` entry type is eligible for every scanner.
+
+With `fail_fast: true`, scanning stops when an individual positive-risk `BLOCK`
+finding reaches the threshold after severity weighting, unless its risk score
+is within `1e-9` of zero. Those near-zero positive scores still contribute to
+the final aggregate. A blocking scanner error also stops scanning when
+fail-fast is enabled. Otherwise, compatible scanners continue and their
+findings are returned.
+
+=== Scanner errors
+
+* `fail` propagates the original scanner error instead of returning a verdict.
+* `block` returns an unsafe verdict; fail-fast determines whether scanning
+  continues after the error.
+* `skip` records the failed scanner as skipped and continues.
+
+== Cascade Gates
+
+A cascade evaluates ordered stages. Each stage makes its decision from its own
+scanners; it does not reuse an earlier stage's score.
+
+This example shows two stages; a cascade can have more. Only a nonfinal stage
+can defer to the next stage.
+
+[mermaid]
+....
+flowchart LR
+accTitle: Cascade gate with two ordered stages
+accDescr: Stage 1 allows or blocks and stops, or defers to the final Stage 2. Stage 2 is final and can only allow or block; it cannot defer.
+    A[Entry] --> B[Stage 1: scan and score]
+    B --> C{Stage 1 decision}
+    C -->|Allow - stop| D[Allow]
+    C -->|Block - stop| E[Block]
+    C -->|Defer - continue| F["Stage 2 (final): scan and score"]
+    F --> G{Final decision}
+    G -->|Allow - stop| H[Allow]
+    G -->|Block - stop| I[Block]
+....
+
+=== Stage scores and decisions
+
+All compatible scanners in a reached stage run before its score decision, unless
+an operational scanner failure interrupts the stage. A stage scores only its
+own completed positive-risk `BLOCK` findings, weighted by severity. Earlier
+findings remain visible but are not selected or rescored. With no eligible
+findings the score is `0`, and the aggregator is not called.
+
+Decisions use strict greater-than boundaries:
+
+. A score above `threshold` blocks; equality does not block.
+. A nonfinal stage defers when its score is above `defer_above`; equality allows.
+. Otherwise the entry is allowed. The final stage allows every score not blocked.
+
+Every stage is numerical. Each nonfinal stage must have `defer_above` below its
+resolved threshold; the final stage forbids `defer_above`, even in a
+single-stage cascade. A stage threshold overrides the optional root default.
+Configuration errors are described in xref:configuration.adoc[Configuration].
+An allow is terminal: later stages do not run. Max aggregation does not prove
+scanner independence or probability calibration.
+
+=== Operational errors and stage results
+
+Cascade `on_scanner_error` supports `fail` (the default) and `block`. A known
+content-type mismatch is an operational fault, not a skipped scanner. On either
+kind of operational fault, the current stage stops and later stages are marked
+`not_reached`.
+
+* `fail` raises the original scanner or transport error where possible.
+* `block` returns an unsafe operational verdict without inventing a threat
+  finding. The entry score `1.0` is a fail-closed sentinel, not model risk; the
+  interrupted stage omits its score.
+
+Stage summaries expose `id`, `result`, and an optional diagnostic `score`.
+Normally reached stages include their score; unreached stages do not. Each
+completed finding appears once, in execution order, and its `stage` names the
+stage that ran its scanner.

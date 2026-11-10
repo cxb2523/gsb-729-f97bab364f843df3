@@ -1,0 +1,392 @@
+= Configuration
+:description: Configure a CerbIA security gate in YAML, including component classes, initialization arguments, and validation rules.
+:page-tags: reference, configuration, yaml
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: docs/content/docs/configuration.mdx (local MDX; source SHA-256 recorded in legacy-routes.json).
+
+CerbIA reads one flat YAML mapping for one security gate. Shared pipeline
+fields stay at the root; `type: simple` or an absent `type` selects the simple
+scanner-list variant, while `type: cascade` selects ordered stages. At
+construction, `GateFactory` dispatches once to `SimpleGate` or `CascadeGate`;
+both implement the `SecurityGate` protocol used by `Runner` for each entry.
+
+== Configuration lifecycle
+
+=== Schema validation
+
+All configuration models live in `cerbia.core.config`: component records,
+`SimpleGateConfig`, `CascadeGateConfig`, `CascadeStageConfig`, and
+`GateType` (`simple`/`cascade`). `CerbIAConfig` is the discriminated root union.
+Construct or directly validate simple models with `SimpleGateConfig` or
+`SimpleGateConfig.model_validate`; validate either variant with the adapter.
+Both root variants constrain `type` with a literal `GateType` member.
+
+`CONFIG_ADAPTER` is a Pydantic `TypeAdapter` over the `CerbIAConfig` discriminated
+union (`Field(discriminator="type")`). Its outer `BeforeValidator` copies in
+the simple tag only when `type` is absent; null or unknown tags are rejected,
+and the caller's mapping is not mutated. `parse_config` is a thin mapping
+entry point to this adapter; it does not dispatch variants itself. Serialized
+configs always include `type: simple` or `type: cascade`, including defaulted
+simple configs. The union JSON schema exposes its discriminator and both
+variants. Use the adapter for raw mappings, JSON, or already constructed models.
+
+`parse_config` validates the root model before constructing components. Cascade
+roots reject simple-only `scanners`, `score_aggregator`, and `fail_fast`;
+simple roots reject `stages`. Unknown fields and the old `gate` wrapper are
+rejected. Component paths remain strings and `init_args` is forwarded to
+constructors. `Runner` requires at least one loader; both variants require
+scanners at construction, and each cascade stage requires its own scanners.
+
+=== Component construction
+
+`Runner` requires at least one loader. It imports configured classes, passes
+`init_args` as constructor keyword arguments, and checks their component
+contracts. An invalid import path or constructor argument can pass schema
+validation but fail during construction. Cascade scanner IDs are also checked
+against constructed scanner instances, so duplicate runtime IDs fail before
+scanning.
+
+`cerbia validate` performs both phases without loading entries or running
+scanners.
+
+== Flat configuration shapes
+
+Both variants keep the pipeline name, loaders, and preprocessors at the root.
+The scanner and scoring fields distinguish their flat shapes:
+
+|===
+|Variant |Root fields |Evaluation
+
+|Simple (`type: simple` or omitted)
+|`scanners`, `score_aggregator`, `threshold`, `fail_fast`, `on_scanner_error`
+|One ordered scanner list and one aggregate verdict per entry.
+
+|Cascade (`type: cascade`)
+|`stages`, optional root `threshold`, `on_scanner_error`
+|Ordered stages with stage-owned scanners, aggregators, and score decisions.
+|===
+
+The simple variant retains its flat shape; see the
+link:{repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml[canonical simple
+configuration]. A cascade replaces the simple-only fields with an ordered
+`stages` list; see the
+link:{repo-url}/blob/main/examples/cli-usage/cascade.cerbia.yaml[canonical
+cascade configuration]. These examples are illustrative, not calibrated
+policy. An early cascade allow can skip checks in later stages, so it does not
+provide the same checks as running every scanner in every stage.
+
+These minimal configurations use the same loader and scanners; only the gate
+topology and its scoring fields differ. The cascade's first stage defers above
+`0.2`, and its final stage inherits root threshold `0.8`.
+
+[source,yaml]
+----
+name: shared-components
+type: simple
+threshold: 0.8
+on_scanner_error: fail
+loaders:
+  - loader: cerbia.core.loaders.TextLoader
+    init_args:
+      texts: ["Example input"]
+scanners:
+  - scanner: cerbia.core.scanners.KeywordScanner
+  - scanner: cerbia.core.scanners.SecretScanner
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MaxScoreAggregator
+----
+
+[source,yaml]
+----
+name: shared-components
+type: cascade
+threshold: 0.8
+on_scanner_error: fail
+loaders:
+  - loader: cerbia.core.loaders.TextLoader
+    init_args:
+      texts: ["Example input"]
+stages:
+  - id: keywords
+    threshold: 0.6
+    defer_above: 0.2
+    scanners:
+      - scanner: cerbia.core.scanners.KeywordScanner
+    score_aggregator:
+      score_aggregator: cerbia.core.score_aggregators.MaxScoreAggregator
+  - id: secrets
+    scanners:
+      - scanner: cerbia.core.scanners.SecretScanner
+    score_aggregator:
+      score_aggregator: cerbia.core.score_aggregators.MaxScoreAggregator
+----
+
+=== Shared root fields
+
+|===
+|Field |Required |Default |Meaning
+
+|`name` |Yes |— |Human-readable pipeline identifier.
+|`type` |No |`simple` |Root discriminator; serialized configs include the selected type.
+|`loaders` |No in schema |`[]` |Ordered loader records; `Runner` requires at least one.
+|`preprocessors` |No |`[]` |Ordered transformation records, applied before gate evaluation.
+|===
+
+=== Simple variant fields
+
+|===
+|Field |Required |Default |Meaning
+
+|`scanners` |No in schema |`[]` |Ordered scanner records; construction requires at least one.
+|`score_aggregator` |Yes |— |Strategy for combining positive, severity-weighted BLOCK scores.
+|`fail_fast` |No |`true` |Stops on blocking scanner failure or an individual positive-risk BLOCK finding whose severity-weighted score reaches the threshold.
+|`threshold` |No |`0.0` |Inclusive aggregate blocking boundary in `[0, 1]`.
+|`on_scanner_error` |No |`block` |`fail`, `block`, or `skip`.
+|===
+
+=== Cascade variant fields and stage routing
+
+The cascade root requires a nonempty `stages` list and accepts an optional
+default `threshold` and `on_scanner_error` (`fail` by default; `block` is the
+alternative). It does not
+accept simple-only `scanners`, `score_aggregator`, or `fail_fast`.
+
+|===
+|Location |Field |Requirement and meaning
+
+|Root |`threshold` |Optional finite default in `[0, 1]` for stages without their own threshold.
+|Root |`on_scanner_error` |`fail` or `block`; `skip` is unsupported.
+|Stage |`id` |Required, nonblank, unique stage identifier.
+|Stage |`scanners` |Required nonempty ordered list; runtime scanner IDs must be nonblank and unique across the cascade.
+|Stage |`score_aggregator` |Required; combines this stage's eligible findings only.
+|Stage |`threshold` |Required after inheritance; an explicit stage value overrides the root default.
+|Nonfinal stage |`defer_above` |Required and strictly smaller than the resolved threshold.
+|Final stage |`defer_above` |Forbidden, including explicit null; a one-stage cascade is final.
+|===
+
+Every stage must have at least one `action: block` scanner. Scanners with only
+`warn` or `pass` actions are not sufficient. All scanners in a reached stage
+complete before its score-based decision, unless an operational fault stops the
+stage. Each stage scores only its own completed findings: earlier outcomes and
+scores are not reused or rescored. Findings from all executed stages remain
+once in one flat output list.
+
+For each reached stage, the gate aggregates positive BLOCK findings weighted
+by severity; without eligible findings, its score is `0` and the aggregator is
+not called. Decisions use strict boundaries, in this order:
+
+. Block when `score > threshold`; equality does not block.
+. On the final stage, allow any score not blocked.
+. On a nonfinal stage, defer when `score > defer_above`; equality allows.
+. Otherwise allow.
+
+Thresholds and `defer_above` are finite numbers in `[0, 1]`, not booleans or
+strings. A nonfinal threshold of `0.0` is invalid because it cannot have a
+smaller defer boundary; a final stage may use `0.0`. Omit optional root values
+rather than setting them to null. Root `threshold` is inherited only by stages
+that omit their own threshold. The CLI `--threshold` option overrides the root
+default before inheritance; explicitly configured stage thresholds keep
+precedence.
+
+Scanner failures and known content-type mismatches are operational faults, not
+stage decisions. `fail` raises; `block` produces a terminal unsafe result.
+The interrupted stage stops scanning and later stages are `not_reached`.
+Cascade output has ordered stage summaries (`id`, `result`, optional `score`)
+and a flat findings list whose `stage` identifies the owner. Every executed
+finding appears once; unreached stages have no score. Simple output has
+`stages: null` and omits `finding.stage`.
+
+=== Python configuration
+
+Python callers import `CerbIAConfig`, `SimpleGateConfig`, `CascadeGateConfig`,
+`CascadeStageConfig`, `GateType`, and `parse_config` from `cerbia.core.config`.
+Results use `StageResult` summaries (`id`, `result`, optional `score`)
+and flat findings with `stage`. Simple results include `stages: null`.
+
+== Component records
+
+Every component record names an importable class using its collection's path key:
+
+|===
+|Collection |Path key
+
+|`loaders` |`loader`
+|`preprocessors` |`preprocessor`
+|`scanners` |`scanner`
+|`score_aggregator` |`score_aggregator`
+|===
+
+=== `init_args` contract
+
+`init_args` is optional and defaults to `{}`. Its keys become keyword argument
+names for the configured class constructor; its values are forwarded without
+component-specific schema validation. Use the selected component's reference
+page for accepted arguments, defaults, and validation rules.
+
+[source,yaml]
+----
+loaders:
+  - loader: cerbia.core.loaders.FileLoader
+    init_args:
+      paths: ["src", "tests"]
+      extensions: [".py", ".yaml"]
+      recursive: true
+
+scanners:
+  - scanner: cerbia.core.scanners.KeywordScanner
+    init_args:
+      languages: ["en", "es"]
+      match_strategy: all
+      redact: true
+
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MaxWithBonusScoreAggregator
+  init_args:
+    bonus: 0.05
+----
+
+Incorrect constructor names or values fail during component construction, not
+when the root YAML mapping is parsed.
+
+== Loaders
+
+Loaders run in list order and their entries are combined. Use `TextLoader` for
+inline values or `FileLoader` for paths and directories. See the
+xref:components/loaders.adoc[loader reference] for details.
+
+[source,yaml]
+----
+loaders:
+  - loader: cerbia.core.loaders.TextLoader
+    init_args:
+      texts:
+        - "First value to scan"
+        - "Second value to scan"
+
+  - loader: cerbia.core.loaders.FileLoader
+    init_args:
+      paths: ["src"]
+      extensions: [".py", ".md"]
+      recursive: true
+----
+
+== Preprocessors
+
+Preprocessors run in list order after loading and before gate evaluation. They
+can transform entries or produce derived entries. See the
+xref:components/preprocessors.adoc[preprocessor reference] for available components.
+
+[source,yaml]
+----
+preprocessors:
+  - preprocessor: cerbia.core.preprocessors.WhitespaceNormalizationPreprocessor
+    init_args:
+      max_consecutive_spaces: 6
+      max_consecutive_newlines: 6
+----
+
+== Scanners
+
+Scanners run in `SimpleGate` or inside `CascadeGate` stages. Scanner options
+belong in `init_args` and are specific to the configured scanner; see the
+xref:components/scanners.adoc[scanner reference] before adding options.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.XssScanner
+    init_args:
+      html_context_aware: true
+      content_types: [text, code]
+----
+
+== Content-type routing and error policy
+
+`content_types` controls whether a scanner is eligible for an entry. Valid
+values are `text`, `url`, `code`, and `unknown`.
+
+|===
+|Condition |Result
+
+|Scanner `content_types` is `null` |Scanner accepts every content type.
+|Entry type is `unknown` |Every scanner is eligible; each gate then follows its own decision rules.
+|A known entry type is listed in `content_types` |Scanner runs.
+|A known entry type is not listed |SimpleGate skips and records the incompatible scanner. CascadeGate treats the mismatch as an operational fault governed by `on_scanner_error` (`fail` raises; `block` returns an unsafe result).
+|===
+
+For a cascade, a mismatch stops the reached stage: remaining scanners in that
+stage do not run, and later stages have `result: not_reached`. A simple gate
+can skip incompatible scanners and continue. Routing controls scanner eligibility,
+not loader selection or preprocessing.
+The core `TextLoader` and `FileLoader` currently produce entries with an
+`unknown` content type, so scanner restrictions do not exclude their entries.
+
+== Score aggregators
+
+The score aggregator combines severity-weighted scores from positive `BLOCK`
+findings. SimpleGate uses one configured aggregator for its eligible findings;
+CascadeGate uses the aggregator configured on each stage for that stage's own
+findings. Choose an aggregator record and configure its options with
+`init_args`; see xref:components/score-aggregators.adoc[score aggregators] for strategies.
+
+[source,yaml]
+----
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MaxWithBonusScoreAggregator
+  init_args:
+    bonus: 0.05
+----
+
+== Simple gate execution policies
+
+Only positive `BLOCK` findings contribute severity-weighted scores to the
+aggregator. An entry is unsafe when the aggregate reaches or exceeds
+`threshold`. At `threshold: 0.0`, a positive-risk BLOCK finding makes the entry
+unsafe; if there are no eligible positive BLOCK findings, the entry is safe
+unless a blocking scanner failure occurred. `fail_fast: true` stops after an individual blocking finding
+whose risk score is not within `1e-9` of zero reaches the threshold after
+severity weighting. Near-zero positive scores still contribute to aggregation.
+
+`on_scanner_error` controls exceptions raised by scanners:
+
+|===
+|Value |Result
+
+|`fail` |Propagates the scanner error.
+|`block` |Marks the entry unsafe and records a scanner-failure rationale.
+|`skip` |Records the scanner as skipped and continues.
+|===
+
+See xref:gate.adoc[Gates] for verdict rules.
+
+Cascade stage execution and routing are described in
+<<Cascade variant fields and stage routing>>.
+
+== Validate configuration
+
+Validate either canonical flat configuration before scanning:
+
+[source,bash]
+----
+cerbia validate examples/cli-usage/simple.cerbia.yaml
+----
+
+[source,bash]
+----
+cerbia validate examples/cli-usage/cascade.cerbia.yaml
+----
+
+A successful command means the YAML mapping and root schema are valid, required
+runtime loader and scanner presence is checked, component paths can be imported,
+constructors accept their arguments, and the resulting objects satisfy their
+expected contracts. It does not load entries or run scanners, but constructors
+can initialize models or other resources. Validate only trusted configurations.
+
+== Related references
+
+See xref:architecture.adoc[Architecture], xref:gate.adoc[Gates], and
+xref:packages.adoc[Packages] for pipeline and package details. See
+xref:components/custom-components.adoc[Custom components] to configure externally provided
+loaders, preprocessors, scanners, and score aggregators.

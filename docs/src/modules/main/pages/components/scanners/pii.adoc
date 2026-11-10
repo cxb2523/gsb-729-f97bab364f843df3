@@ -1,0 +1,76 @@
+= PII scanners
+:description: Detect common personally identifiable information with built-in or custom regular expressions.
+:page-tags: Reference, Scanner
+
+`cerbia.core.scanners.PiiScanner` uses built-in regular expressions to locate common personally identifiable information. It reports match spans and uses the highest matching pattern score as its risk score.
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`extra_patterns`
+|`null`
+|Additional `(name, regex)` pairs. Extra patterns use risk `0.80`.
+
+|`severity`
+|`HIGH`
+|Finding severity.
+
+|`action`
+|`WARN`
+|Findings are visible but do not contribute to blocking aggregation unless changed.
+
+|`content_types`
+|`[TEXT]`
+|Accepted content types.
+
+|`validate_checksums`
+|`false`
+|When `true`, candidate matches failing checksum validation are discarded (e.g. Modulo 23 for Spanish DNI/NIE, Luhn for credit cards, and Modulo 97 for IBAN). This reduces noise but can also miss sensitive identifiers with typos.
+
+|`custom_validators`
+|`null`
+|Optional dictionary mapping pattern names to custom validator callables `(str) -> bool`.
+
+|`email_domains`
+|`null`
+|Restrict built-in email detection to exact, case-insensitive domain matches. `null` (Python `None`) preserves detection of all domains; `[]` disables only built-in email detection. Other PII and `extra_patterns` are unchanged.
+|===
+
+[source,python]
+----
+from cerbia.core.scanners import PiiScanner
+
+scanner = PiiScanner(email_domains=["example.com", "example.org"])
+result = scanner.scan("jane@example.com")  # Detected
+----
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.PiiScanner
+    init_args:
+      action: block
+      validate_checksums: true
+      email_domains: ["example.com", "example.org"]
+      extra_patterns:
+        - ["Employee ID", "EMP-[0-9]{6}"]
+----
+
+The listed domains are *detected*, not exempted. For example, the configuration above detects
+`jane@example.com` and `jane [at] example [dot] org`, but not `jane@other.com`.
+Subdomains require their own explicit entry: `example.com` does not match `team.example.com`.
+Domain prefixes and suffixes such as `notexample.com` and `example.com.evil` do not match.
+
+`email_domains` accepts `list[str]` or `None`; list entries must be bare ASCII DNS domains with at least two labels.
+Each label must contain 1–63 ASCII letters, digits, or hyphens, with no leading or trailing hyphen;
+the full domain must be at most 253 characters. Domain strings are case-insensitive, but whitespace is not trimmed.
+Empty strings, whitespace, `@` prefixes, URLs, paths, ports, wildcards, Unicode domains,
+empty labels, and leading or trailing dots are rejected with `CerbIAConfigError` during construction.
+Use Python `None` or YAML `null` (or omit the option) to preserve existing behavior.
+Use `[]` to turn off built-in email detection without affecting other PII or custom patterns,
+including custom patterns labeled `Email` or `Email (obfuscated)`.
+
+For NLP-backed English entity recognition, use the optional xref:components/scanners/pii-presidio.adoc[PresidioPiiScanner]. See the xref:cerbia-presidio:index.adoc[Presidio package reference].
+
+Use `action: block` when detected PII must affect the aggregate verdict. Keep the default `warn` when the pipeline should report PII while allowing the caller to make a separate handling decision from the findings and match spans.

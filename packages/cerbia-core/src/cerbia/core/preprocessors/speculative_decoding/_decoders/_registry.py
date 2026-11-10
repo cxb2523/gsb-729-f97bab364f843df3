@@ -1,0 +1,121 @@
+from .._defaults import DEFAULT_BINARY_OUTPUT, DEFAULT_RELAXED_OUTPUT, DEFAULT_TEXT_OUTPUT
+from .._types import DecoderSpec
+from ._builtins import (
+    base32_gate,
+    base64_gate,
+    decode_base32,
+    decode_base64,
+    decode_gzip,
+    decode_hex,
+    decode_html_entities,
+    decode_leetspeak,
+    decode_reversed,
+    decode_rot13,
+    decode_rot47,
+    decode_unicode_escapes,
+    decode_url,
+    decode_zlib,
+    hex_gate,
+    html_entity_gate,
+    leet_gate,
+    reversed_gate,
+    rot13_gate,
+    rot47_gate,
+    unicode_escape_gate,
+    urlenc_gate,
+)
+from ._constants import (
+    BASE32_PATTERN,
+    BASE64_PATTERN,
+    HEX_PATTERN,
+    HTML_ENTITY_PATTERN,
+    UNICODE_ESCAPE_PATTERN,
+    URLENC_PATTERN,
+)
+
+INTENSIVE_DECODER_IDS: frozenset[str] = frozenset({"rot13", "rot47", "leetspeak", "reversed"})
+
+DECODERS: tuple[DecoderSpec, ...] = (
+    DecoderSpec(
+        decoder_id="base64",
+        extract_patterns=(BASE64_PATTERN,),
+        input_gate=base64_gate,
+        decode=decode_base64,
+        output_policy=DEFAULT_BINARY_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="hex",
+        extract_patterns=(HEX_PATTERN,),
+        input_gate=hex_gate,
+        decode=decode_hex,
+        output_policy=DEFAULT_TEXT_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="base32",
+        extract_patterns=(BASE32_PATTERN,),
+        input_gate=base32_gate,
+        decode=decode_base32,
+        output_policy=DEFAULT_TEXT_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="url_encoding",
+        extract_patterns=(URLENC_PATTERN,),
+        input_gate=urlenc_gate,
+        decode=decode_url,
+        output_policy=DEFAULT_RELAXED_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="html_entities",
+        extract_patterns=(HTML_ENTITY_PATTERN,),
+        input_gate=html_entity_gate,
+        decode=decode_html_entities,
+        output_policy=DEFAULT_RELAXED_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="unicode_escapes",
+        extract_patterns=(UNICODE_ESCAPE_PATTERN,),
+        input_gate=unicode_escape_gate,
+        decode=decode_unicode_escapes,
+        output_policy=DEFAULT_RELAXED_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="rot13",
+        chain_only=True,
+        input_gate=rot13_gate,
+        decode=decode_rot13,
+        output_policy=DEFAULT_TEXT_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="rot47",
+        chain_only=True,
+        input_gate=rot47_gate,
+        decode=decode_rot47,
+        output_policy=DEFAULT_TEXT_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="leetspeak",
+        chain_only=True,
+        input_gate=leet_gate,
+        decode=decode_leetspeak,
+        output_policy=DEFAULT_TEXT_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="reversed",
+        chain_only=True,
+        input_gate=reversed_gate,
+        decode=decode_reversed,
+        output_policy=DEFAULT_TEXT_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="gzip",
+        chain_only=True,
+        decode=decode_gzip,
+        output_policy=DEFAULT_BINARY_OUTPUT,
+    ),
+    DecoderSpec(
+        decoder_id="zlib",
+        chain_only=True,
+        decode=decode_zlib,
+        output_policy=DEFAULT_BINARY_OUTPUT,
+    ),
+)

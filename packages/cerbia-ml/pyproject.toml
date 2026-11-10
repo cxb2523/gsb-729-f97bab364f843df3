@@ -1,0 +1,46 @@
+[project]
+name = "cerbia-ml"
+version = "0.6.1.dev0"
+description = "CerbIA Machine-learning library"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+    { name = "Sergio Bugallo Enjamio", email = "sergiobe@inditex.com" },
+    { name = "Mario Escobedo Del Rio", email = "marioer@inditex.com" },
+    { name = "Jesús Manuel Maneiro Figueroa", email = "jesusmmfi@inditex.com" },
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = [
+    "cerbia-core==0.6.0",
+    "optimum[onnxruntime]~=2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/InditexTech/cerbia"
+Repository = "https://github.com/InditexTech/cerbia"
+Issues = "https://github.com/InditexTech/cerbia/issues"
+
+[build-system]
+requires = ["uv_build>=0.11.31,<0.12"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "cerbia.ml"
+
+[tool.uv.sources]
+cerbia-core = { workspace = true }

@@ -1,0 +1,155 @@
+= CLI reference
+:description: Use the CerbIA CLI to validate YAML pipelines and scan text or files from the command line.
+:page-tags: reference, cli, commands
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: docs/content/docs/cli.mdx (local MDX; source SHA-256 recorded in legacy-routes.json).
+
+Install the command-line interface with `pip install "cerbia[cli]"`. The
+executable provides `scan` and `validate`.
+
+== `cerbia validate CONFIG.yaml`
+
+Validate one YAML configuration file, construct its `Runner`, and print the
+configured pipeline. This command does not load entries or execute scanners,
+but eagerly initializes components, including any configured models. Use only
+trusted configurations; validation is not a sandbox or a model-quality check.
+
+[source,bash]
+----
+cerbia validate examples/cli-usage/simple.cerbia.yaml
+----
+
+|===
+|Input |Meaning
+
+|`config` |Required path to one YAML configuration file. Directories are not supported.
+|`--log-level` |`DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`.
+|`--log-file` |Write logs to this path instead of standard error; an existing file is overwritten.
+|===
+
+Exit code `0` means the file parsed and its pipeline could be constructed.
+Missing or malformed configuration files exit `2`; a configuration that parses
+but cannot construct its pipeline exits `1` for `CerbIAError` or `2` for
+`TypeError`.
+
+== `cerbia scan --config CONFIG.yaml`
+
+Run one configured pipeline and render a result for each loaded entry.
+
+[source,bash]
+----
+cerbia scan --config examples/cli-usage/simple.cerbia.yaml --text "Text to scan"
+----
+
+|===
+|Option |Meaning
+
+|`--config`, `-c` |Required path to one YAML configuration file.
+|`--text`, `-t` |Repeatable inline input. Any supplied values replace configured loaders.
+|`--file`, `-f` |Repeatable file input. Any supplied values replace configured loaders.
+|`--output`, `-o` |Write JSON results to a path ending in `.json`; an existing file is overwritten.
+|`--threshold` |Override the root threshold for this invocation. Explicit cascade stage thresholds take precedence.
+|`--unsafe-only` |Show and serialize only unsafe entry results. It does not change scanner execution.
+|`--log-level` |`DEBUG`, `INFO`, `WARNING`, `ERROR`, or `CRITICAL`.
+|`--log-file` |Write logs to this path instead of standard error; an existing file is overwritten.
+|===
+
+`CerbIA CLI Scan` and `Running scan...` are Rich console progress messages,
+not logging records; `--log-level` and `--log-file` do not control them.
+
+The `--unsafe-only` option filters console output and `entry_results` in JSON;
+it also hides near-zero-risk finding rows and skipped scanners in console panels.
+JSON retains all findings for the selected unsafe entries. Scan execution and
+exit codes are unchanged.
+
+Inline text and file options replace every loader configured in YAML. When no
+override is supplied, the configuration's loaders are used. The command rejects
+a run with no loaders after this selection.
+
+For root `type: cascade`, `--threshold` replaces or supplies the root YAML
+threshold before parsing and stage inheritance. Stages without their own
+threshold inherit the CLI value; explicit stage thresholds, including `0.0`,
+remain unchanged. Invalid root values or resulting defer bands exit `2` before
+scanner construction. Simple threshold override behavior is unchanged.
+Set `defer_above` on every
+nonfinal stage and omit it on the final stage in YAML. Use
+`cerbia validate CONFIG.yaml` to construct and inspect either gate shape without
+loading entries or scanning them.
+
+`FileLoader` treats missing paths and extension-filtered paths as no entries,
+so a `--file` value can produce an empty, safe result rather than an error.
+With no explicit logging options, the standalone command preserves the host
+logging setup when one exists. In a standalone process with no root handlers it
+installs an `INFO` stderr handler for that CLI process; if a root handler
+already exists, it installs nothing. This CLI-owned behavior differs from
+reusing CerbIA as a library import, which has no logging-configuration side
+effects. Explicit logging options control that CLI invocation.
+
+== Output and exit codes
+
+The terminal output groups findings by entry. Each scanner row shows its
+outcome; skipped scanners are retained in the entry result so routing and error
+policy decisions remain visible.
+
+Simple-gate JSON includes `stages: null`. Cascade JSON contains ordered stage
+summaries with exactly `id`, `result` (`allow`, `block`, `defer`, or
+`not_reached`), and an optional finite score in `[0, 1]`. Unreached stages omit
+score. An operational block also omits its stage score; its bounded explanation
+is in the entry rationale and its aggregate score is the fail-closed sentinel
+`1.0`, not a threat probability.
+
+Each cascade finding has `stage`, assigned by the gate. The flat `findings`
+list contains all executed stages' completed scanner findings exactly once in
+execution order, including deferred stages. Each stage scores only its own
+outcomes; earlier findings are retained but never rescored. Simple findings omit
+`stage` when unset. Panels group by this field
+and show `✓ SAFE`, `✗ UNSAFE`, `◇ DEFER`, or `⊘ NOT REACHED` in
+green/red/yellow/dim panels. Scored panels use a `score=` subtitle.
+Cascade required scanners fail or block rather than generating skipped records;
+simple gates retain their skipped-scanner rows.
+
+[source,json]
+----
+{"stages":[{"id":"text","result":"defer","score":0.2},{"id":"secrets-and-urls","result":"block","score":0.71}]}
+----
+
+`EntryResult`, `GateVerdict`, and stage summaries
+reject unknown fields. Stage identifiers are plain strings; configured IDs are
+checked for blank values when parsing configuration. Stage results and scores
+are validated, as are terminal routing,
+finding ownership, unique scanner findings, and execution order. Findings
+cannot belong to an unknown or unreached stage. Existing entry text and finding
+rationale remain in the ordinary result and can be sensitive.
+
+`--output` serializes a `ScanResult` with `entry_results`, `is_safe`,
+`total_findings`, and `unsafe_entries`. Every entry result includes the entry
+metadata, `aggregated_score`, rationale, findings, and skipped scanners. Raw
+entry text is included in the serialized entry, so treat JSON output as
+potentially sensitive and store it accordingly.
+
+|===
+|Exit code |Meaning
+
+|`0` |Every resulting entry is safe, including an empty result set.
+|`1` |At least one resulting entry is unsafe.
+|`2` |Usage, configuration, input selection, output-path, or handled execution error.
+|===
+
+== Examples
+
+[source,bash]
+----
+# Use loaders from the configuration.
+cerbia scan --config examples/cli-usage/simple.cerbia.yaml
+
+# Scan two inline values instead of configured loaders.
+cerbia scan -c examples/cli-usage/simple.cerbia.yaml -t "first input" -t "second input"
+
+# Scan local files and write only unsafe entry results to JSON.
+cerbia scan -c examples/cli-usage/simple.cerbia.yaml -f input.txt --unsafe-only -o results.json
+
+# Inspect a configuration before running it.
+cerbia validate examples/cli-usage/simple.cerbia.yaml --log-level DEBUG
+----

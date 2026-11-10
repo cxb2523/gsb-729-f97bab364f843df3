@@ -1,0 +1,46 @@
+= cerbia-presidio
+:description: Add the optional Presidio and spaCy integration for English NLP-based PII scanning.
+
+`cerbia-presidio` provides
+`cerbia.presidio.scanners.PresidioPiiScanner`, an optional English
+natural-language-processing scanner backed by Presidio and the
+`en_core_web_sm` spaCy model.
+
+== Install
+
+[source,bash]
+----
+pip install cerbia-presidio
+----
+
+The distribution declares its Presidio analyzer and English spaCy model
+dependencies. Scanner construction initializes the model, so allow for that
+runtime cost when choosing where to create the scanner.
+
+== Configure the scanner
+
+By default, the scanner asks the English analyzer for every supported entity
+type. Set `entities` to limit the scan. The result uses the highest Presidio
+confidence as its risk score, includes detected match spans, and blocks findings
+by default.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.presidio.scanners.PresidioPiiScanner
+    init_args:
+      entities: ["EMAIL_ADDRESS", "PHONE_NUMBER"]
+----
+
+The class is also available from `cerbia.presidio.scanners`:
+
+[source,python]
+----
+from cerbia.presidio.scanners import PresidioPiiScanner
+----
+
+Use the core `PiiScanner` when an NLP runtime is not appropriate. For
+product-wide setup, see xref:main:configuration.adoc[Configuration] and the
+xref:main:quickstart.adoc[quickstart]. The
+xref:main:components/scanners/pii-presidio.adoc[Presidio scanner reference]
+describes the scanner alongside the other pipeline components.

@@ -1,0 +1,65 @@
+= ProtectAI prompt injection scanner
+:description: Classify text for prompt injection with the optional ProtectAI DeBERTa-v3 integration.
+:page-tags: Reference, Scanner, Optional integration
+
+`cerbia.protectai.scanners.ProtectAIPromptInjectionScanner` classifies text with a DeBERTa-v3 model. Install `cerbia[protectai]`; it includes the ML dependency chain used to create the local classifier pipeline.
+
+== Parameters
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`model_ref`, `model_revision`, `model_subfolder`, `model_filename`
+|package defaults
+|Model artifact coordinates.
+
+|`tokenizer_ref`, `tokenizer_revision`, `tokenizer_subfolder`, `tokenizer_filename`
+|package defaults
+|Tokenizer artifact coordinates.
+
+|`local_files_only`
+|`true`
+|Restrict artifact loading to the local cache. Set `false` to permit Hub downloads.
+
+|`match_type`
+|`full`
+|`full` classifies the complete text; `chunks` uses overlapping windows.
+
+|`chunk_size`
+|`256`
+|Window size when `match_type: chunks`.
+
+|`chunk_overlap`
+|`25`
+|Overlap between consecutive windows.
+
+|`severity`
+|`CRITICAL`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action.
+
+|`content_types`
+|`[TEXT]`
+|Accepted content types.
+|===
+
+For chunked input, the scanner evaluates every window and returns the highest injection probability. Empty or whitespace-only input returns risk `0.0`.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.protectai.scanners.ProtectAIPromptInjectionScanner
+    init_args:
+      match_type: chunks
+      chunk_size: 256
+      chunk_overlap: 25
+      local_files_only: true
+----
+
+Model and tokenizer loading can raise a library error when the requested artifacts are unavailable or inference cannot initialize.
+
+Use the pattern-based xref:components/scanners/prompt-injection.adoc[Prompt injection scanner] when a local model dependency is not appropriate. The two scanners can be configured together; their blocking scores then participate independently in the selected score aggregator.

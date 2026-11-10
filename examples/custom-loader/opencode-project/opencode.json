@@ -1,0 +1,22 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "reviewer",
+  "instructions": ["INSTRUCTIONS.md"],
+  "agent": {
+    "note-planner": {
+      "description": "Organizes event notes into a practical volunteer plan.",
+      "mode": "subagent",
+      "prompt": "Create an ordered plan from the supplied Maple Harbor event notes.",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny"
+      }
+    }
+  },
+  "command": {
+    "meeting-summary": {
+      "description": "Prepare a concise summary for the next volunteer meeting.",
+      "template": "Summarize the supplied Maple Harbor planning notes."
+    }
+  }
+}

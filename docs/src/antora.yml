@@ -1,0 +1,53 @@
+name: ROOT
+title: CerbIA
+version: prerelease
+prerelease: true
+start_page: ROOT:index.adoc
+nav:
+  - modules/main/nav.adoc
+  - modules/cerbia/nav.adoc
+  - modules/cerbia-core/nav.adoc
+  - modules/cerbia-cli/nav.adoc
+  - modules/cerbia-ml/nav.adoc
+  - modules/cerbia-presidio/nav.adoc
+  - modules/cerbia-protectai/nav.adoc
+nav_modules:
+  - module: main
+    title: Documentation
+    description: Product overview, setup, guides, and component reference.
+    icon: grid-3x3
+  - module: cerbia
+    title: cerbia
+    description: Installation selector and optional capability extras.
+    icon: grid-3x3
+  - module: cerbia-core
+    title: cerbia-core
+    description: Core Python pipeline and configurable security gates.
+    icon: grid-3x3
+  - module: cerbia-cli
+    title: cerbia-cli
+    description: Command-line interface for validation and scanning.
+    icon: grid-3x3
+  - module: cerbia-ml
+    title: cerbia-ml
+    description: Model artifact and text-classification adapters.
+    icon: grid-3x3
+  - module: cerbia-presidio
+    title: cerbia-presidio
+    description: Optional Presidio-based PII scanner integration.
+    icon: grid-3x3
+  - module: cerbia-protectai
+    title: cerbia-protectai
+    description: Optional ProtectAI prompt-injection scanner integration.
+    icon: grid-3x3
+not_found_module: main
+footer:
+  groups:
+    - title: Documentation
+      links:
+        - text: Overview
+          url: main:about.adoc
+    - title: Project
+      links:
+        - text: GitHub repository
+          url: https://github.com/InditexTech/cerbia

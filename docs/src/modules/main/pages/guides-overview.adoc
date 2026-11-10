@@ -1,0 +1,39 @@
+= Guides
+:description: Guided paths for trying and extending CerbIA security gates.
+:page-tags: guides, workflows
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: README.md Quickstart and Features; CONTRIBUTING.md Development workflow.
+
+Use these entry points to move from a working CerbIA installation to a gate
+that fits your inputs. The quickstart walks through a complete CLI run. The
+configuration and component pages provide the material for adapting that
+example, while the package modules cover optional integrations.
+
+== Start with a working gate
+
+* *Validate and scan a sample:* install the CLI, validate a YAML definition,
+  and inspect text with the xref:quickstart.adoc[quickstart].
+  For command syntax outside that walkthrough, see the xref:cli.adoc[CLI
+  reference].
+* *Choose gate settings:* review the configuration structure and available
+  options in xref:configuration.adoc[Configuration].
+* *Select inspection components:* compare the available
+  xref:components/scanners.adoc[scanners] and decide which checks suit your
+  input and threat model.
+
+== Extend the pipeline
+
+* *Add an input source:* see the xref:components/loaders.adoc[loader catalog]
+  for inline text and file inputs.
+* *Prepare content before inspection:* review the
+  xref:components/preprocessors.adoc[preprocessor catalog].
+* *Integrate custom logic:* use the
+  xref:components/custom-components.adoc[custom components reference] to learn
+  how CerbIA can be extended with project components.
+
+For exact option names and package details, use the
+xref:reference-overview.adoc[Reference overview]. The walkthroughs focus on
+goals and decisions; exhaustive command and configuration details stay in the
+reference pages.

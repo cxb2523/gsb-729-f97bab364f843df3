@@ -1,0 +1,42 @@
+= Score aggregators
+:description: Choose how severity-weighted blocking findings become the score compared with the gate threshold.
+:page-tags: Reference, Components
+
+Simple gates pass positive-risk, severity-weighted `BLOCK` scores to their
+configured aggregator. Cascades use only the current stage's positive-risk,
+severity-weighted `BLOCK` findings and that stage's aggregator. With positive
+blocking findings, simple gates block when the aggregate is greater than or
+equal to `threshold`; cascade stages block only when their own score is strictly
+greater than `threshold`. Operational faults can block independently.
+
+Scores must be in the `0.0`–`1.0` range. `MaxWithBonusScoreAggregator` caps its
+result at `1.0` but does not clamp below zero; a negative bonus can produce an
+invalid negative result. Findings with other actions remain in the result but
+are not passed to an aggregator.
+
+Configure one aggregator at the simple root or within each cascade stage:
+
+[source,yaml]
+----
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MaxScoreAggregator
+----
+
+[options="header"]
+|===
+|Aggregator |Best for |Behavior
+
+|xref:components/score-aggregators/max.adoc[`MaxScoreAggregator`]
+|A single severe signal should dominate.
+|Returns the highest score.
+
+|xref:components/score-aggregators/max-with-bonus.adoc[`MaxWithBonusScoreAggregator`]
+|Independent signals should raise confidence.
+|Adds a configurable bonus for every score after the first.
+
+|xref:components/score-aggregators/mean.adoc[`MeanScoreAggregator`]
+|Average evidence should drive the verdict.
+|Returns the arithmetic mean.
+|===
+
+All three return `0.0` for an empty input list.

@@ -1,0 +1,42 @@
+name: opencode-project-scan
+fail_fast: false
+on_scanner_error: block
+
+loaders:
+  - loader: opencode_loader.OpenCodeLoader
+    init_args:
+      root: opencode-project
+
+scanners:
+  - scanner: cerbia.core.scanners.InvisibleTextScanner
+
+  - scanner: cerbia.core.scanners.KeywordScanner
+    init_args:
+      languages: []
+      extra_patterns:
+        - ["Demo Marker", "CERBIA_DEMO_BLOCK_MARKER"]
+      redact: true
+      action: block
+
+  - scanner: cerbia.core.scanners.PromptInjectionScanner
+    init_args:
+      languages: ["en"]
+      severity: critical
+      action: block
+
+  - scanner: cerbia.core.scanners.SecretScanner
+    init_args:
+      entropy_detection: false
+      severity: critical
+      action: block
+
+  - scanner: cerbia.core.scanners.UrlAllowListScanner
+    init_args:
+      allowed_domains:
+        - "https://opencode.ai/config.json"
+      action: block
+
+  - scanner: cerbia.core.scanners.MaliciousUrlScanner
+
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MaxScoreAggregator

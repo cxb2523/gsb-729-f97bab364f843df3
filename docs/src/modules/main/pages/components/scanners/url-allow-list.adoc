@@ -1,0 +1,53 @@
+= URL allowlist scanner
+:description: Allow only URLs that match configured full-URL wildcard patterns.
+:page-tags: Reference, Scanner
+
+`cerbia.core.scanners.UrlAllowListScanner` extracts URLs from text and compares each one with an approved full-URL wildcard pattern. It is intended to prevent unexpected destinations in generated or configured text.
+
+== Parameters
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`allowed_domains`
+|required
+|List of inline full-URL wildcard patterns, or a path string/`Path` to a UTF-8 `.txt` file. An empty list is valid.
+
+|`severity`
+|`HIGH`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action.
+
+|`content_types`
+|`[TEXT, URL, CODE]`
+|Accepted content types.
+|===
+
+Patterns match normalized complete URLs, including scheme and path. Use `pass:[https://example.com/]` to allow only the normalized root URL, or `pass:[https://example.com/*]` to allow descendant paths. Query strings and fragments do not form part of the normalized comparison.
+
+Pass either a list of inline patterns or a file path; the two forms are not combined. The file is read once when the scanner is constructed. Each nonblank line is one pattern; surrounding whitespace is stripped and lines whose first non-whitespace character is `#` are comments. Inline comments are not supported, and `#` in a rule is retained. The existing matcher treats only `*` as a wildcard; it does not validate strict URL grammar. A relative path is resolved from the process working directory, not the configuration file's directory. Files must have a `.txt` suffix. Missing, unreadable, invalid-encoding, or invalid-rule files raise `CerbIAConfigError` with path context.
+
+[source,text]
+----
+# Approved sites
+https://example.com/*
+https://docs.example.com/*
+----
+
+An empty or comment-only file adds no allow rules. Extracted URLs are rejected unless a matching allow rule is already in the runner's shared registry.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.UrlAllowListScanner
+    init_args:
+      allowed_domains: "config/allowed-urls.txt"
+----
+
+To configure inline rules, pass `allowed_domains: ["https://example.com/*"]`. When text contains no URL, the scanner returns risk `0.0`. When every extracted URL matches a pattern, it also returns risk `0.0`; otherwise it returns `0.95` and a rationale listing up to five non-allowlisted URLs.
+
+`Runner` creates one `UrlRegistry` per runner and shares it with allowlist, denylist, and malicious-URL scanners. The registry keeps allow and deny rules separately; an explicit deny makes `is_allowed` false and cannot be overridden by an allow rule, regardless of registration source or order. Standalone scanners can share a registry through `url_registry`.

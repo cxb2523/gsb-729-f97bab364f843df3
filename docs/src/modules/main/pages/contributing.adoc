@@ -1,0 +1,36 @@
+= Contributing
+:description: Ways to contribute to CerbIA and links to its contribution rules.
+:page-tags: contributing, community
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: CONTRIBUTING.md; CODE_OF_CONDUCT.md; README.md Contributing section.
+
+Contributions to CerbIA include bug reports, documentation improvements, and
+code changes. Start with the path that fits your contribution, then use the
+repository's contribution guide for the full process.
+
+== Ways to contribute
+
+* *Report a bug or suggest a feature:* open an issue in the
+  link:{repo-url}/issues[issue tracker] and check for an existing discussion.
+* *Improve the documentation:* report an issue or propose a focused change
+  through a pull request.
+* *Contribute code:* read the contribution guide before opening a pull
+  request.
+
+== Before you start
+
+* link:{repo-url}/blob/main/CONTRIBUTING.md[CONTRIBUTING.md] describes the
+  CLA requirement, issue discussion, branching, testing, and pull request
+  process. The CLA instructions link to the
+  link:https://github.com/InditexTech/foss/blob/main/CONTRIBUTING.md[Inditex
+  FOSS contribution guide].
+* link:{repo-url}/blob/main/CODE_OF_CONDUCT.md[CODE_OF_CONDUCT.md] links to
+  the community conduct rules and contact.
+* link:{repo-url}/blob/main/LICENSE[LICENSE] states the project's
+  Apache-2.0 license.
+
+For the documented development workflow, see
+xref:guides-overview.adoc[Guides]. For the product scope before contributing,
+see xref:about.adoc[About CerbIA].

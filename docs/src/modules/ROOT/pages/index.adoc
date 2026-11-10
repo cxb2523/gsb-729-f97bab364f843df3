@@ -1,0 +1,119 @@
+= Home
+:page-layout: home-single
+:page-nav-module: main
+:description: Security gates for AI agents' inputs and outputs. Check prompts, files, instructions, configurations, and agent interactions before application, CI/CD, or local use.
+:page-action: Start scanning
+:page-action-url: https://github.com/inditextech/cerbia/tree/main/examples/cli-usage
+:page-action-secondary: Read the documentation
+:page-action-secondary-url: main:about.adoc
+
+CerbIA is a Python library and command-line interface for reusable security
+gates around AI agents' inputs and outputs. Review prompts, files,
+instructions, configurations, and other agent interactions before application,
+CI/CD, or local use.
+
+Define reviewable pipelines in YAML, then run the same gate in an application,
+from the command line, or in a deployment pipeline. The gate loads content,
+optionally preprocesses it, applies scanners, and aggregates findings into a
+risk verdict.
+
+== Get started
+
+Install CerbIA with CLI support, validate the example configuration, and scan
+text:
+
+[source,bash]
+----
+pip install "cerbia[cli]"
+cerbia validate examples/cli-usage/simple.cerbia.yaml
+cerbia scan --config examples/cli-usage/simple.cerbia.yaml --text "A short message"
+----
+
+The commands above use the
+https://github.com/inditextech/cerbia/blob/main/examples/cli-usage/simple.cerbia.yaml[CLI example configuration].
+Follow the xref:main:prerequisites.adoc[prerequisites] to get ready, or read
+xref:main:about.adoc[about CerbIA] for its scope and limitations.
+
+== Use it where you work
+
+* *Python library:* evaluate agent interactions from application code with a
+  native Python API.
+* *Command line:* scan text, files, and configurations locally with the
+  `cerbia` command before deployment.
+* *CI/CD pipelines:* automate checks with the same CLI and declarative YAML
+  configuration used during local development.
+
+== Declarative evaluation
+
+YAML-first configuration makes a pipeline reviewable, versionable, and
+distributable. Each gate composes four stages:
+
+. *Load* content from inline text or file inputs.
+. *Normalize* extracted data before inspection.
+. *Inspect* with pattern-based scanners and optional local ML integrations.
+. *Decide* by aggregating risk into a block or allow verdict.
+
+== Extend it and run it anywhere
+
+Add custom loaders, preprocessors, scanners, and score aggregators without
+forking the codebase. Configure fully qualified Python components and their
+initialization arguments in YAML. Register language-specific patterns for
+built-in scanners using ISO-639-1 language codes and the `@i18n_pattern`
+decorator; built-in packs support English, Spanish, and Galician.
+
+For example, a custom scanner can be selected by its Python class path and
+configured with initialization arguments:
+
+[source,yaml]
+----
+scanners:
+  - scanner: your_package.components.CompanyPolicyScanner
+    init_args:
+      blocked_phrase: "internal only"
+----
+
+Layer fast pattern-based checks for suspicious instructions, secrets, PII,
+URLs, and hidden text with optional local ML-backed integrations for selected
+scenarios. Run the same declarative gate across applications, environments,
+and CI/CD pipelines.
+
+== Start scanning in three steps
+
+.Install CerbIA
+[source,bash]
+----
+pip install "cerbia[cli]"
+----
+
+.Validate configuration
+[source,bash]
+----
+cerbia validate examples/cli-usage/simple.cerbia.yaml
+----
+
+.Scan content
+[source,bash]
+----
+cerbia scan --config examples/cli-usage/simple.cerbia.yaml --text "A short message"
+----
+
+== Free and open source
+
+CerbIA is licensed under the
+https://github.com/inditextech/cerbia/blob/main/LICENSE[Apache-2.0 License].
+Contributions that add scanners, preprocessors, and integrations are welcome.
+
+[cta]
+====
+Explore the source, report an issue, or contribute to CerbIA.
+
+[.primary]
+https://github.com/inditextech/cerbia[View the CerbIA repository]
+====
+
+== Important limitations
+
+Scanner results are heuristic or model-based signals, not a security
+certification. Evaluate them for your threat model and retain defense-in-depth
+controls. Read the xref:main:about.adoc[product overview] before using the
+results to make security decisions.

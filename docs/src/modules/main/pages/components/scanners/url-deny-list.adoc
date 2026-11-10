@@ -1,0 +1,55 @@
+= URL denylist scanner
+:description: Flag extracted URLs that match configured deny rules.
+:page-tags: Reference, Scanner
+
+`cerbia.core.scanners.UrlDenyListScanner` extracts URLs from text and reports each URL that matches a blocked full-URL wildcard pattern. Its deny rules live in the runner's shared `UrlRegistry`, separately from allow rules. See xref:components/scanners/url-allow-list.adoc[URL allowlist] for the shared full-URL matcher and file syntax.
+
+== Parameters
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`blocked_domains`
+|required
+|List of inline full-URL wildcard patterns, or a path string/`Path` to a UTF-8 `.txt` file. An empty list is valid.
+
+|`severity`
+|`HIGH`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action. A matching URL produces a blocking finding by default.
+
+|`content_types`
+|`[TEXT, URL, CODE]`
+|Accepted content types.
+|===
+
+Pass either a list of inline patterns or a file path; the two forms are not combined. The file is read once when the scanner is constructed. Each nonblank line is one pattern; surrounding whitespace is stripped and lines whose first non-whitespace character is `#` are comments. Inline comments are not supported, and `#` in a rule is retained. Only `*` is a wildcard; the matcher does not validate strict URL grammar. Relative paths resolve from the process working directory, not the configuration file's directory. Files must have a `.txt` suffix. Missing, unreadable, invalid-encoding, or invalid-rule files raise `CerbIAConfigError` with path context.
+
+An empty or comment-only file adds no deny rules; any findings can only come from other deny rules already in the shared registry. Explicit deny rules win over matching allow rules regardless of source or registration order. `UrlRegistry.is_denied` checks the deny store directly; `is_allowed` also returns false for explicitly denied URLs.
+
+== Configuration
+
+Import the scanner from `cerbia.core.scanners` and use the `url_denylist` scanner ID.
+
+[source,python]
+----
+from cerbia.core.scanners import UrlDenyListScanner
+
+scanner = UrlDenyListScanner(blocked_domains=["https://blocked.example/*"])
+----
+
+For a file-backed list, configure the scanner through the existing scanner `init_args` mechanism:
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.UrlDenyListScanner
+    init_args:
+      blocked_domains: "config/blocked-urls.txt"
+----
+
+To configure inline rules, pass `blocked_domains: ["https://blocked.example/*"]`. A standalone scanner can receive an existing shared registry with the keyword-only `url_registry` argument. See xref:configuration.adoc[Configuration] for scanner records.

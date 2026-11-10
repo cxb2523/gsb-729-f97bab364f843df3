@@ -1,0 +1,50 @@
+= About CerbIA
+:description: Security gates for AI agents' inputs and outputs.
+:page-tags: overview, security, architecture
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: docs/content/docs/index.mdx (local MDX; source SHA-256 recorded in legacy-routes.json).
+// Source: README.md About and Features sections; docs/app/page.tsx product framing.
+
+CerbIA is a Python library and CLI for evaluating AI agents' inputs and outputs.
+CerbIA composes security gates around AI agents' inputs and outputs. Configure
+loaders, preprocessors, scanners, and score aggregators to evaluate content and
+return an actionable verdict. Use it in applications, locally, or in CI/CD to
+inspect prompts, files, and other agent interactions.
+
+The same gate definition can be reviewed as YAML and reused across the command
+line and application code. A loader extracts input, configured preprocessors
+normalize it, scanners report findings, and a score aggregator combines those
+findings. See xref:architecture.adoc[Architecture] for the processing model and
+the xref:prerequisites.adoc[prerequisites] before trying the
+xref:quickstart.adoc[quickstart].
+
+Start with xref:quickstart.adoc[Getting started], then use
+xref:configuration.adoc[Configuration] to define a pipeline. The
+xref:packages.adoc[package reference] documents the public Python namespaces;
+optional capabilities are available through the CLI, ML, Presidio, and ProtectAI
+packages.
+
+== Key features
+
+* *Composable evaluation pipeline:* combine loading, preprocessing,
+  inspection, and scoring; see xref:architecture.adoc[Architecture].
+* *YAML gate configuration:* keep gate definitions reviewable and reusable;
+  start with xref:configuration.adoc[Configuration].
+* *Local and automated checks:* run the same gate from the CLI or an
+  application; see xref:cli.adoc[CLI reference].
+* *Task-based walkthroughs:* move from installation to a working scan in
+  xref:guides-overview.adoc[Guides].
+* *Optional detection integrations:* add local ML, Presidio, or ProtectAI
+  packages when needed; see xref:packages.adoc[Package modules].
+
+== Scope
+
+Scanner results are heuristic or model-based signals, not a security
+certification or a replacement for application controls. Evaluate each gate
+against your threat model and retain defense in depth. CerbIA provides reusable
+inspection components; it does not make a universal security verdict for every
+application. For exact configuration and command details, use the
+xref:reference-overview.adoc[Reference] section rather than treating this
+overview as an exhaustive catalog.

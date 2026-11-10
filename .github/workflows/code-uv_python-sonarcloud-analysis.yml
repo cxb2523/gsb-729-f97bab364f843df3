@@ -1,0 +1,164 @@
+# SPDX-FileCopyrightText: 2026 INDUSTRIA DE DISEÑO TEXTIL S.A. (INDITEX S.A.)
+# SPDX-License-Identifier: Apache-2.0
+
+name: code-uv-python-sonarcloud-analysis
+run-name: SonarCloud analysis on ${{ github.head_ref || github.ref_name }}
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, main-*, develop, develop-*]
+  push:
+    branches: [main, main-*, develop, develop-*]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-uv-python-sonarcloud-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_TYPE: ${{ vars.PROJECT_TYPE }}
+  WORKING_DIRECTORY: ${{ vars.WORKING_DIRECTORY }}
+  ASDF_BRANCH_VERSION: '0.18.0'
+
+jobs:
+  analyze:
+    name: SonarCloud / Analyze
+    if: >-
+      vars.SONARCLOUD_ENABLED == 'true' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      (
+        (
+          vars.DEVELOPMENT_FLOW == 'trunk-based-development' &&
+          (
+            (github.event_name == 'workflow_dispatch' && (github.ref_name == 'main' || startsWith(github.ref_name, 'main-'))) ||
+            (github.event_name == 'pull_request' && (github.event.pull_request.base.ref == 'main' || startsWith(github.event.pull_request.base.ref, 'main-'))) ||
+            (github.event_name == 'push' && (github.ref_name == 'main' || startsWith(github.ref_name, 'main-')))
+          )
+        ) ||
+        (
+          vars.DEVELOPMENT_FLOW == 'git-flow' &&
+          (
+            (github.event_name == 'workflow_dispatch' && (github.ref_name == 'develop' || startsWith(github.ref_name, 'develop-'))) ||
+            (github.event_name == 'pull_request' && (github.event.pull_request.base.ref == 'develop' || startsWith(github.event.pull_request.base.ref, 'develop-'))) ||
+            (github.event_name == 'push' && (github.ref_name == 'develop' || startsWith(github.ref_name, 'develop-')))
+          )
+        )
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read governed tool versions
+        id: tool-versions
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Evq '^[a-zA-Z0-9_-]+ [a-zA-Z0-9._+-]+$' .tool-versions; then
+            echo "::error title=Invalid tool-versions::${WORKING_DIRECTORY}/.tool-versions is malformed."
+            exit 1
+          fi
+          {
+            echo "tool_versions<<EOF"
+            awk '1' .tool-versions
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up governed Python toolchain
+        uses: InditexTech/gh-actions/python-toolchain@80ca79bcb04379e4fed8b91a55aa15dc6b8b638a
+        with:
+          tool-versions: ${{ steps.tool-versions.outputs.tool_versions }}
+          asdf-version: ${{ env.ASDF_BRANCH_VERSION }}
+          working-directory: ${{ env.WORKING_DIRECTORY }}
+
+      - name: Run tests with coverage
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv lock --check
+
+          case "$PROJECT_TYPE" in
+            single)
+              uv sync --frozen --all-extras --all-groups
+              uv run --no-sync pytest --cov --cov-report=xml:coverage.xml
+              ;;
+            workspaces)
+              uv sync --frozen --all-extras --all-groups --all-packages
+              uv run --no-sync --all-packages pytest --cov --cov-report=xml:coverage.xml
+              ;;
+            *)
+              echo "::error title=Invalid project type::PROJECT_TYPE must be single or workspaces."
+              exit 1
+              ;;
+          esac
+
+      - name: Resolve SonarCloud analysis scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$PROJECT_TYPE" in
+            single)
+              sonar_sources="${WORKING_DIRECTORY}/src"
+              sonar_tests="${WORKING_DIRECTORY}/tests"
+              ;;
+            workspaces)
+              sources=()
+              tests=()
+              for member_dir in "${WORKING_DIRECTORY}"/packages/*/; do
+                member_dir="${member_dir%/}"
+                if [[ ! -d "$member_dir" ]]; then
+                  continue
+                fi
+                if [[ -d "${member_dir}/src" ]]; then
+                  sources+=("${member_dir}/src")
+                fi
+                if [[ -d "${member_dir}/tests" ]]; then
+                  tests+=("${member_dir}/tests")
+                fi
+              done
+              if [[ "${#sources[@]}" -eq 0 ]]; then
+                echo "::error title=No workspace members::No ${WORKING_DIRECTORY}/packages/*/src directories were found." >&2
+                exit 1
+              fi
+              sonar_sources="$(IFS=,; printf '%s' "${sources[*]}")"
+              sonar_tests="$(IFS=,; printf '%s' "${tests[*]}")"
+              ;;
+            *)
+              echo "::error title=Invalid project type::PROJECT_TYPE must be single or workspaces." >&2
+              exit 1
+              ;;
+          esac
+          for governed_value in "$sonar_sources" "$sonar_tests"; do
+            if [[ "$governed_value" == *$'\n'* ]]; then
+              echo "::error title=Invalid Sonar scope::Resolved analysis paths must not contain newlines." >&2
+              exit 1
+            fi
+          done
+          {
+            echo "SONAR_SOURCES=${sonar_sources}"
+            echo "SONAR_TESTS=${sonar_tests}"
+          } >> "$GITHUB_ENV"
+
+      - name: Run SonarCloud analysis
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        env:
+          SONAR_HOST_URL: https://sonarcloud.io
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >-
+            -Dsonar.organization=inditextech
+            -Dsonar.projectKey=InditexTech_${{ github.event.repository.name }}
+            -Dsonar.projectName=${{ github.event.repository.name }}
+            -Dsonar.sources=${{ env.SONAR_SOURCES }}
+            -Dsonar.tests=${{ env.SONAR_TESTS }}
+            -Dsonar.python.coverage.reportPaths=${{ env.WORKING_DIRECTORY }}/coverage.xml

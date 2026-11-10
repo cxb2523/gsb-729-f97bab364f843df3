@@ -1,0 +1,279 @@
+# SPDX-FileCopyrightText: 2026 INDUSTRIA DE DISEÑO TEXTIL S.A. (INDITEX S.A.)
+# SPDX-License-Identifier: Apache-2.0
+
+name: code-release-preview
+
+on:
+  pull_request:
+    types: [labeled, synchronize, ready_for_review, opened, reopened]
+    branches: [main, main-*, develop, develop-*]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-release-preview-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_TYPE: ${{ vars.PROJECT_TYPE }}
+  WORKING_DIRECTORY: ${{ vars.WORKING_DIRECTORY }}
+  ASDF_BRANCH_VERSION: '0.18.0'
+
+jobs:
+  release-preview:
+    name: Release Preview
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        (vars.DEVELOPMENT_FLOW == 'trunk-based-development' && (github.event.pull_request.base.ref == 'main' || startsWith(github.event.pull_request.base.ref, 'main-'))) ||
+        (vars.DEVELOPMENT_FLOW == 'git-flow' && (github.event.pull_request.base.ref == 'main' || startsWith(github.event.pull_request.base.ref, 'main-')))
+      )
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Resolve pull request merge commit
+        id: merge-commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MERGE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/pull/${GITHUB_EVENT_NUMBER}/merge" ]] \
+            || [[ ! "$MERGE_SHA" =~ ^[0-9a-f]{40}$ ]] \
+            || [[ "$MERGE_SHA" == "$HEAD_SHA" ]]; then
+            echo "::error title=No merge commit::GitHub provides no merge commit of this pull request with its base, so no release can be proposed."
+            body=$'### Release Preview\n\nGitHub provides no merge commit of this pull request with its base (for example, it conflicts with its base), so no release is proposed. Resolve the conflict to get a preview.'
+            gh pr comment "$GITHUB_EVENT_NUMBER" \
+              --repo "$GITHUB_REPOSITORY" \
+              --body "$body"
+            exit 1
+          fi
+          echo "merge_commit=$MERGE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Check out pull request merge commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ steps.merge-commit.outputs.merge_commit }}
+
+      - name: Read governed tool versions
+        id: tool-versions
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Evq '^[a-zA-Z0-9_-]+ [a-zA-Z0-9._+-]+$' .tool-versions; then
+            echo "::error title=Invalid tool-versions::${WORKING_DIRECTORY}/.tool-versions is malformed."
+            exit 1
+          fi
+          {
+            echo "tool_versions<<EOF"
+            awk '1' .tool-versions
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up governed Python toolchain
+        uses: InditexTech/gh-actions/python-toolchain@80ca79bcb04379e4fed8b91a55aa15dc6b8b638a
+        with:
+          tool-versions: ${{ steps.tool-versions.outputs.tool_versions }}
+          asdf-version: ${{ env.ASDF_BRANCH_VERSION }}
+          working-directory: ${{ env.WORKING_DIRECTORY }}
+
+      - name: Check CHANGELOG has Unreleased changes
+        if: >-
+          !contains(github.event.pull_request.labels.*.name, 'skip-release') &&
+          github.event.pull_request.head.ref != 'automated/ci-governance-sync' &&
+          github.event.pull_request.user.login != 'dependabot[bot]' &&
+          github.event.pull_request.user.login != 'renovate[bot]'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet "origin/$BASE_REF"...HEAD -- CHANGELOG.md; then
+            echo "::error title=No CHANGELOG changes::Update the Unreleased section with this release's changes."
+            gh pr comment "$GITHUB_EVENT_NUMBER" --repo "$GITHUB_REPOSITORY" --body $'### :x: No changes in `CHANGELOG.md`\nUpdate the `## [Unreleased]` section listing the changes for this release before merging.'
+            exit 1
+          fi
+
+      - name: Resolve release type
+        id: release-type
+        env:
+          DEVELOPMENT_FLOW: ${{ vars.DEVELOPMENT_FLOW }}
+          GITHUB_EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ ",$RELEASE_LABELS," == *",skip-release,"* ]]; then
+            body=$'### Release Preview\n\nThis pull request has the `skip-release` label and will not create a Python release.'
+            gh pr comment "$GITHUB_EVENT_NUMBER" \
+              --repo "$GITHUB_REPOSITORY" \
+              --body "$body"
+            exit 0
+          fi
+
+          case ",$RELEASE_LABELS," in
+            *",release-type/major,"*) release_bump="major" ;;
+            *",release-type/minor,"*) release_bump="minor" ;;
+            *",release-type/hotfix,"*|*",release-type/multi-hotfix,"*|*",release-type/patch,"*)
+              release_bump="patch"
+              ;;
+            *)
+              if [[ "$DEVELOPMENT_FLOW" == "trunk-based-development" ]]; then
+                release_bump="minor"
+              else
+                body=$'### Release Preview\n\nAdd a `release-type/...` label to calculate a release for this git-flow pull request.'
+                gh pr comment "$GITHUB_EVENT_NUMBER" \
+                  --repo "$GITHUB_REPOSITORY" \
+                  --body "$body"
+                exit 0
+              fi
+              ;;
+          esac
+
+          echo "release_bump=$release_bump" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve release packages
+        id: release-packages
+        if: steps.release-type.outputs.release_bump != ''
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          descriptor="$GITHUB_WORKSPACE/.github/inditextech-ci-python.json"
+          if [[ "$PROJECT_TYPE" == "single" ]]; then
+            release_strategy=single
+            name="$(python3 - <<'PY'
+          from pathlib import Path
+          import tomllib
+
+          with Path("pyproject.toml").open("rb") as handle:
+              name = tomllib.load(handle).get("project", {}).get("name")
+          if not isinstance(name, str) or not name:
+              raise SystemExit("pyproject.toml must declare project.name")
+          print(name)
+          PY
+          )"
+            declared="$(uv version --short)"
+            packages="$(jq -cn --arg name "$name" --arg declared "$declared" \
+              '[{name: $name, "tag-prefix": "", "declared-version": $declared}]')"
+          elif [[ "$PROJECT_TYPE" == "workspaces" ]]; then
+            release_strategy="$(jq -er '.release.strategy' "$descriptor")"
+            names="$(jq -er '.release.packages[]' "$descriptor")"
+            entries="$RUNNER_TEMP/python-release-version-packages.jsonl"
+            : > "$entries"
+            while IFS= read -r package; do
+              declared="$(uv version --package "$package" --short)"
+              jq -cn --arg name "$package" --arg declared "$declared" \
+                '{name: $name, "tag-prefix": "\($name)-v", "declared-version": $declared}' >> "$entries"
+            done <<< "$names"
+            case "$release_strategy" in
+              independent)
+                packages="$(jq -cs . "$entries")"
+                ;;
+              locked-step)
+                packages="$(jq -cs '[{name: (map(.name) | join(", ")), "tag-prefix": "", "declared-version": .[0]."declared-version"}]' "$entries")"
+                ;;
+              *)
+                echo "::error title=Invalid release strategy::.release.strategy must be locked-step or independent."
+                exit 1
+                ;;
+            esac
+          else
+            echo "::error title=Invalid project type::PROJECT_TYPE must be single or workspaces."
+            exit 1
+          fi
+
+          {
+            echo "strategy=$release_strategy"
+            echo "packages=$packages"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Compute release version
+        id: release-version
+        if: steps.release-type.outputs.release_bump != ''
+        uses: InditexTech/gh-actions/release-version@ab7978dfa118776238a6982e445707a1ae6c0668 # v1.2.0
+        with:
+          release-type: ${{ steps.release-type.outputs.release_bump }}
+          tag-format: v
+          strategy: ${{ steps.release-packages.outputs.strategy }}
+          packages: ${{ steps.release-packages.outputs.packages }}
+          dev-suffix: .dev0
+
+      - name: Calculate release preview
+        if: steps.release-type.outputs.release_bump != ''
+        env:
+          DEVELOPMENT_FLOW: ${{ vars.DEVELOPMENT_FLOW }}
+          GITHUB_EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_BUMP: ${{ steps.release-type.outputs.release_bump }}
+          RELEASE_PACKAGES: ${{ steps.release-packages.outputs.packages }}
+          RELEASE_STRATEGY: ${{ steps.release-packages.outputs.strategy }}
+          RELEASES: ${{ steps.release-version.outputs.releases }}
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_bump="$RELEASE_BUMP"
+          merge_strategy="Create a merge commit"
+          if [[ "$DEVELOPMENT_FLOW" == "trunk-based-development" ]]; then
+            merge_strategy="Squash and merge"
+          fi
+
+          release_lines="$(jq -er '.[] |
+            "- `\(.package)`: latest release \(if .base == "" then "_none (first release)_" else "`\(.base)`" end) -> proposed `\(.version)` (tag `\(.tag)`, next development `\(.next_dev)`)"' <<< "$RELEASES")"
+          if [[ "$RELEASE_STRATEGY" == "single" ]]; then
+            versions="$release_lines"
+          else
+            versions="- Workspace release strategy: \`$RELEASE_STRATEGY\`"$'\n'"$release_lines"
+          fi
+
+          warnings="$(jq -er --argjson packages "$RELEASE_PACKAGES" '
+            [to_entries[]
+              | select(.value.declared_ahead)
+              | "> :warning: Declared version `\($packages[.key]."declared-version" | sub("\\.dev[0-9]+$"; ""))` of `\(.value.package)` is ahead of the computed release `\(.value.version)`; the cut releases `\(.value.version)` (the `release-type/...` label sets the version)."]
+            | join("\n")' <<< "$RELEASES")"
+          warning_block=""
+          if [[ -n "$warnings" ]]; then
+            while IFS= read -r warning; do
+              warning="${warning#> :warning: }"
+              echo "::warning title=Declared version ahead::${warning//\`/}"
+            done <<< "$warnings"
+            warning_block=$'\n'"$warnings"$'\n'
+          fi
+
+          changes="$(awk '
+            BEGIN { capture=0 }
+            /^## \[[Uu]nreleased\]/ { capture=1; next }
+            capture && /^## \[/ { capture=0 }
+            capture { print }
+          ' CHANGELOG.md)"
+
+          body="$(printf "%s\n\n%s\n- Release type: \`%s\`\n- Expected merge strategy: **%s**\n%s\n#### Changes\n%s" \
+            '### Python Release Preview' \
+            "$versions" \
+            "$release_bump" \
+            "$merge_strategy" \
+            "$warning_block" \
+            "$changes")"
+          gh pr comment "$GITHUB_EVENT_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --body "$body"

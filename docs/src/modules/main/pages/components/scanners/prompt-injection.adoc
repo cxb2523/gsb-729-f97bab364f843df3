@@ -1,0 +1,40 @@
+= Prompt injection scanner
+:description: Detect multilingual prompt-injection patterns such as instruction override, exfiltration, and role hijacking.
+:page-tags: Reference, Scanner
+
+`cerbia.core.scanners.PromptInjectionScanner` applies multilingual patterns for instruction override, exfiltration, role hijacking, false authority, task deflection, and context manipulation.
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`languages`
+|all registered
+|Language packs to load.
+
+|`severity`
+|`CRITICAL`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action.
+
+|`content_types`
+|`[TEXT]`
+|Accepted content types.
+|===
+
+The scanner reports matching spans and a cumulative score derived from its matched patterns. Configure it after preprocessors so encoded instructions are visible to the pattern engine.
+
+Language packs provide the human-language pattern families. Restricting `languages` limits those packs; it does not remove the scanner's own common pattern handling. Defensive-context patterns reduce findings when a suspicious phrase appears as an explanation or example rather than an instruction.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.PromptInjectionScanner
+    init_args:
+      languages: ["en", "es"]
+----
+
+For the optional classifier-backed alternative, see xref:components/scanners/prompt-injection-protectai.adoc[ProtectAI prompt injection].

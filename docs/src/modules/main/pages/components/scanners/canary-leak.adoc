@@ -1,0 +1,45 @@
+= Canary leak scanner
+:description: Find configured canary tokens and partial leaks, including encoded or zero-width representations.
+:page-tags: Reference, Scanner
+
+`cerbia.core.scanners.CanaryLeakScanner` looks for configured marker tokens in text, including normalized representations that hide a token with HTML entities, URL encoding, or zero-width characters. Use it to detect a marker that should never appear in generated content.
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`canary_tokens`
+|`null`
+|Tokens to monitor. An empty list produces no findings.
+
+|`min_partial_length`
+|`8`
+|Minimum contiguous token fragment considered a partial leak.
+
+|`case_insensitive`
+|`false`
+|Compare tokens after lowercasing.
+
+|`severity`
+|`CRITICAL`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action.
+
+|`content_types`
+|`null`
+|Accepted content types; `null` accepts every type.
+|===
+
+An exact token yields risk `1.0`; a partial fragment without an exact match yields risk `0.75`. The scanner returns match spans for detected fragments.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.CanaryLeakScanner
+    init_args:
+      canary_tokens: ["marker-12345678"]
+      case_insensitive: true
+----

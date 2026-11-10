@@ -1,0 +1,41 @@
+= Invisible text scanner
+:description: Detect zero-width, bidirectional, format-control, and other hard-to-see Unicode characters.
+:page-tags: Reference, Scanner
+
+`cerbia.core.scanners.InvisibleTextScanner` detects Unicode characters that are easy for a person to miss but can change how downstream text is interpreted. It counts zero-width characters, bidi overrides, format controls, tag characters, and private-use or unassigned code points.
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`threshold`
+|`3`
+|Number of detected invisible characters allowed before high-risk handling.
+
+|`languages`
+|all registered
+|Language packs used for suspicious-keyword context after characters are removed.
+
+|`severity`
+|`CRITICAL`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action.
+
+|`content_types`
+|`null`
+|Accepted content types; `null` accepts every type.
+|===
+
+No hidden characters yields risk `0.0`. Counts at or below `threshold` produce risk `0.2`; larger counts begin at `0.7 + count × 0.03`, capped at `1.0`. If the cleaned text matches a suspicious keyword pattern, the score receives an additional `0.15` bonus.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.InvisibleTextScanner
+    init_args:
+      threshold: 3
+      languages: ["en", "es"]
+----

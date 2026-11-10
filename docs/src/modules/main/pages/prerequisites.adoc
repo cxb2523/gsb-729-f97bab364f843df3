@@ -1,0 +1,37 @@
+= Prerequisites
+:description: Requirements and installation steps before using CerbIA.
+:page-tags: getting started, installation
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: README.md Python badge and Quickstart; docs/app/page.tsx install command.
+
+Check these requirements before following the
+xref:quickstart.adoc[quickstart]. The command line path needs Python 3.12 or
+later and a CerbIA installation with the `cli` extra.
+
+== Requirements
+
+* Python 3.12 or later.
+* `pip` or another Python package installer that can install packages from
+  PyPI.
+
+== Installation
+
+Install CerbIA with CLI support in the environment where you plan to run it:
+
+[source,bash]
+----
+pip install "cerbia[cli]"
+----
+
+The `cli` extra provides the `cerbia` executable. CerbIA also offers optional
+extras for local ML, Presidio, and ProtectAI integrations; see
+xref:reference-overview.adoc[Reference] for package entry points.
+
+== Example configuration
+
+The repository maintains a YAML gate definition for the CLI walkthrough. Open
+the link:{example-config-url}[CLI example configuration] from GitHub, then
+continue to xref:quickstart.adoc[Quickstart] to validate it and scan sample
+content.

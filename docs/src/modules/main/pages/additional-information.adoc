@@ -1,0 +1,35 @@
+= Additional information
+:description: CerbIA change history, support, and security reporting information.
+:page-tags: support, changelog, security
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: CHANGELOG.md; SECURITY.md; README.md Contributing section.
+
+This page links to CerbIA's maintained change history and explains how to
+report project issues or security vulnerabilities. The repository files remain
+the source of truth, so this page does not copy release entries or invent a
+support schedule.
+
+== Change history
+
+The repository's link:{repo-url}/blob/main/CHANGELOG.md[CHANGELOG.md] records
+project changes. It currently contains an Unreleased section; this page does
+not imply published CerbIA release notes or release dates.
+
+== Contact and support
+
+* *Report a bug or request a feature:* open an issue in the
+  link:{repo-url}/issues[CerbIA issue tracker]. Check existing issues first
+  to avoid duplicate reports.
+* *Ask about a proposed change:* use an issue to describe the goal and gather
+  feedback before making a substantial change.
+
+=== Security
+
+Do not report security vulnerabilities through public issues. Follow the
+link:{repo-url}/blob/main/SECURITY.md[security policy] and submit a report
+through the Inditex link:https://vdp.inditex.com[disclosure submission program].
+
+For the product's exact command, configuration, and package details, see the
+xref:reference-overview.adoc[Reference overview].

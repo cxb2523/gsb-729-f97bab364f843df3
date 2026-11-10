@@ -1,0 +1,47 @@
+= FileLoader
+:description: Load UTF-8 text from files or recursively discovered directory trees, with optional suffix filters.
+:page-tags: reference, components, loaders
+:repo-url: https://github.com/InditexTech/cerbia
+
+// Source: docs/content/docs/components/loaders/file-loader.mdx; implementation: packages/cerbia-core/src/cerbia/core/loaders/file.py.
+
+`cerbia.core.loaders.FileLoader` reads individual files and directory trees into
+entries. Use it to scan repositories, configuration directories, and other
+local text collections.
+
+== Parameters
+
+|===
+|Parameter |Default |Meaning
+
+|`paths` |required |One path or a list of file and directory paths.
+|`extensions` |`null` |Optional list of suffixes to include, such as `['.py', '.yaml']`.
+|`recursive` |`true` |Whether directory paths are traversed recursively.
+|===
+
+A single path becomes a one-item list. A direct file is loaded only if its
+suffix passes the optional extension filter. Directory paths use `**/*` when
+`recursive` is true and `*` otherwise. CerbIA sorts discovered files before
+loading them.
+
+Files are read as UTF-8 with replacement decoding. Invalid byte sequences become
+replacement characters instead of causing a decoding failure. Each output entry
+uses the file's resolved absolute path as its `source`.
+
+Missing paths produce no entries and do not raise an error. A direct file whose
+suffix does not match also produces no entry, with a warning logged; a directory
+with no matching files produces no entries. This behavior matters when the CLI
+uses `--file`: an empty result set is safe by definition.
+
+[source,yaml]
+----
+loaders:
+  - loader: cerbia.core.loaders.FileLoader
+    init_args:
+      paths: ["src", "README.md"]
+      extensions: [".py", ".md"]
+      recursive: true
+----
+
+See xref:components/loaders/text-loader.adoc[TextLoader] for inline input and
+xref:configuration.adoc[Configuration] for component records.

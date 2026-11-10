@@ -1,0 +1,50 @@
+= Architecture
+:description: See how entries move from input through preprocessing and gate evaluation to scan results.
+:page-tags: architecture, pipeline, overview
+:repo-url: https://github.com/InditexTech/cerbia
+:example-config-url: {repo-url}/blob/main/examples/cli-usage/simple.cerbia.yaml
+
+// Source: docs/content/docs/architecture.mdx (local MDX; source SHA-256 recorded in legacy-routes.json).
+
+CerbIA processes entries through a short pipeline: loaders produce input,
+preprocessors transform it, and a configured gate returns a verdict. The runner
+collects those verdicts into the scan result. Configuration selects either a
+simple gate or a cascade once when the runner is constructed.
+
+== Pipeline overview
+
+[mermaid]
+....
+flowchart LR
+accTitle: CerbIA pipeline
+accDescr: Loaders provide entries, preprocessors transform them, a simple or cascade gate evaluates each entry, and the runner collects the results.
+    A[Input entries] --> B[Preprocess]
+    B --> C[Gate: simple or cascade]
+    C --> D[Scan results]
+....
+
+== Entry and result flow
+
+Loaders run in configuration order and their entry lists are combined. Each
+preprocessor receives the current list in turn. The runner calls the selected
+gate once for every resulting entry and pairs each verdict with its entry in an
+`EntryResult`; the `ScanResult` collects those entry results. A preprocessor may
+change the number or order of entries, so results correspond to entries after
+preprocessing.
+
+The gate decides how an individual entry is evaluated and returns its verdict.
+See xref:gate.adoc[Gates] for simple and cascade behavior, and
+xref:configuration.adoc[Configuration] for the YAML shapes.
+
+== Component boundaries
+
+Loaders and preprocessors prepare entries; scanners inspect them; the gate turns
+scanner findings into a verdict; score aggregators combine eligible blocking
+scores. Factories construct configured components, while the runner coordinates
+the pipeline. Component references describe their own options and extension
+contracts:
+
+* xref:components/loaders.adoc[Loaders]
+* xref:components/preprocessors.adoc[Preprocessors]
+* xref:components/scanners.adoc[Scanners]
+* xref:components/score-aggregators.adoc[Score aggregators]

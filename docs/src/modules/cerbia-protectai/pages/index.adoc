@@ -1,0 +1,51 @@
+= cerbia-protectai
+:description: Add the optional ProtectAI classifier integration for prompt-injection scanning with local model artifacts.
+
+`cerbia-protectai` provides
+`cerbia.protectai.scanners.ProtectAIPromptInjectionScanner`, an optional
+classifier-backed prompt-injection scanner. It depends on `cerbia-core` and
+`cerbia-ml` for pipeline contracts and model loading.
+
+== Install
+
+[source,bash]
+----
+pip install cerbia-protectai
+pip install "cerbia[protectai]"
+----
+
+The direct distribution and the `protectai` extra both install the required
+package dependencies. The scanner loads a model and tokenizer from pinned
+artifacts. By default, `local_files_only` is `true`, so provision those assets
+in the local cache before constructing the scanner. Set it to `false` only when
+runtime downloads from Hugging Face are appropriate.
+
+== Choose a matching strategy
+
+The scanner can classify the whole input or divide it into overlapping windows.
+Use `match_type: full` for one whole-text classification. Use `match_type:
+chunks` to classify chunks; the defaults are `chunk_size: 256` and
+`chunk_overlap: 25`. The result reports the highest injection score across the
+input windows.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.protectai.scanners.ProtectAIPromptInjectionScanner
+    init_args:
+      match_type: chunks
+      local_files_only: true
+----
+
+The scanner class is available from `cerbia.protectai.scanners`:
+
+[source,python]
+----
+from cerbia.protectai.scanners import ProtectAIPromptInjectionScanner
+----
+
+See xref:cerbia-ml:index.adoc[cerbia-ml] for artifact behavior and the
+xref:main:components/scanners/prompt-injection-protectai.adoc[ProtectAI scanner
+reference] for the scanner's product-wide component details. The
+xref:main:configuration.adoc[configuration reference] and
+xref:main:quickstart.adoc[quickstart] cover the surrounding pipeline.

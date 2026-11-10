@@ -1,0 +1,24 @@
+= Preprocessors
+:description: Transform loaded entries before scanning with decoding and whitespace-normalization preprocessors.
+:page-tags: reference, components, preprocessors
+:repo-url: https://github.com/InditexTech/cerbia
+
+// Source: docs/content/docs/components/preprocessors/index.mdx; implementations: packages/cerbia-core/src/cerbia/core/preprocessors/.
+
+Preprocessors transform loaded entries before scanners run. CerbIA Core exports
+`SpeculativeDecodingPreprocessor` and
+`WhitespaceNormalizationPreprocessor`. Both preserve input-entry cardinality
+and order, and retain preprocessing lineage metadata. Configure preprocessors
+in order: each preprocessor's output becomes the next one's input.
+
+* xref:components/preprocessors/speculative-decoding.adoc[Speculative decoding]
+  searches for plausible encoded or obfuscated text.
+* xref:components/preprocessors/whitespace-normalization.adoc[Whitespace
+  normalization] reduces whitespace patterns that can split or hide text.
+
+Preprocessing is conservative. An entry that needs no change is passed through
+unchanged as the original entry object. A changed entry retains its source,
+content type, and lineage; it records the original text and transformation
+metadata. See xref:architecture.adoc[Architecture] for its position in the full
+pipeline and xref:configuration.adoc[Configuration] for the order of component
+records.

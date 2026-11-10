@@ -1,0 +1,23 @@
+= Packages
+:description: Choose a CerbIA distribution and open its package module for installation and API details.
+:page-tags: reference, packages
+
+CerbIA is distributed as a core package, a command-line package, and optional
+integration packages. Each package has its own module with installation and
+usage details. Use these links to open the artifact-specific documentation:
+
+* xref:cerbia:index.adoc[cerbia]
+* xref:cerbia-core:index.adoc[cerbia-core]
+* xref:cerbia-cli:index.adoc[cerbia-cli]
+* xref:cerbia-ml:index.adoc[cerbia-ml]
+* xref:cerbia-presidio:index.adoc[cerbia-presidio]
+* xref:cerbia-protectai:index.adoc[cerbia-protectai]
+
+Decisions/SystemOne is a core scanner, not a separate distribution. Install
+`cerbia-core` or `cerbia`; HTTP support is included as a required core dependency.
+See xref:components/scanners/decisions.adoc[the scanner reference].
+
+For product-wide installation requirements and the first working example, see
+the xref:prerequisites.adoc[prerequisites] and
+xref:quickstart.adoc[quickstart]. Package APIs stay in their respective
+modules, rather than being repeated here.

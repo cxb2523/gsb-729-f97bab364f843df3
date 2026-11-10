@@ -1,0 +1,102 @@
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
+
+[dependency-groups]
+dev = [
+    "pre-commit==4.7.0",
+    "pytest==9.2.0",
+    "pytest-cov==7.1.0",
+    "pytest-mock==3.17.0",
+    "reuse[charset-normalizer]==6.3.0",
+    "ruff==0.17.3",
+    "ty==0.0.99",
+    "typer==0.27.3",
+]
+
+examples = [
+    "fastapi",
+    "langchain",
+    "langchain-core",
+    "uvicorn",
+]
+
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.src]
+include = ["packages"]
+exclude = ["**/tests/**"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "--strict-config",
+    "--strict-markers",
+    "--cov",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+]
+markers = [
+    "integration: tests interactions across package or external boundaries",
+    "unit: tests one package unit in isolation",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["packages"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+
+[tool.ruff]
+line-length = 120
+indent-width = 4
+target-version = "py312"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = false
+docstring-code-line-length = "dynamic"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors / Flake8
+    "W",    # pycodestyle warnings / Flake8
+    "F",    # pyflakes / Flake8
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "C901", # McCabe cyclomatic complexity
+    "UP",   # pyupgrade
+    "D",    # pydocstyle /flake8-docstrings
+]
+
+ignore = [
+    "D100",  # Missing docstring in public module
+    "D104",  # Missing docstring in public package
+    "D107",  # Missing docstring in __init__
+]
+per-file-ignores = {"**/tests/**" = ["D"]}
+
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true

@@ -1,0 +1,60 @@
+= cerbia-core
+:description: Use the core Python API for entries, pipeline components, configuration models, Runner, and SecurityGate implementations.
+
+`cerbia-core` provides `cerbia.core`, the configurable pipeline used by CerbIA
+integrations. It includes entries, loaders, preprocessors, scanners, score
+aggregators, configuration models, `Runner`, and the `SecurityGate` protocol with
+its `SimpleGate` and `CascadeGate` implementations.
+
+== Install
+
+[source,bash]
+----
+pip install cerbia-core
+----
+
+The core package requires Python 3.12 or later, Pydantic, and `httpx2>=2.13.1,<3`. It does not require
+the optional ML or NLP runtimes; those capabilities are provided by separate
+distributions.
+
+== Create and run a pipeline
+
+This example creates a text loader, a keyword scanner, and a maximum score
+aggregator, then scans the configured entry:
+
+[source,python]
+----
+from cerbia.core.config import (
+    LoaderConfig,
+    ScannerConfig,
+    ScoreAggregatorConfig,
+    SimpleGateConfig,
+)
+from cerbia.core.runner import Runner
+
+config = SimpleGateConfig(
+    name="inline",
+    loaders=[LoaderConfig(loader="cerbia.core.loaders.TextLoader", init_args={"texts": "hello"})],
+    scanners=[ScannerConfig(scanner="cerbia.core.scanners.KeywordScanner")],
+    score_aggregator=ScoreAggregatorConfig(
+        score_aggregator="cerbia.core.score_aggregators.MaxScoreAggregator"
+    ),
+)
+result = Runner(config).scan()
+----
+
+`Runner` requires at least one loader and scanner. It applies configured
+preprocessors in order, then evaluates each resulting entry through the gate.
+`result.entry_results` contains per-entry results, and `result.is_safe` reports
+whether the complete run is safe.
+
+== Find component details
+
+Use the product-wide references for the
+xref:main:architecture.adoc[pipeline lifecycle],
+xref:main:configuration.adoc[configuration format],
+xref:main:components/loaders.adoc[loaders],
+xref:main:components/preprocessors.adoc[preprocessors],
+xref:main:components/scanners.adoc[scanners], and
+xref:main:components/score-aggregators.adoc[score aggregators]. The
+xref:main:quickstart.adoc[quickstart] walks through a working CLI example.

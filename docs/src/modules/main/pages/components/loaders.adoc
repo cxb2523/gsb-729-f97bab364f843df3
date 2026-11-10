@@ -1,0 +1,19 @@
+= Loaders
+:description: Load inline text or local files into entries for the CerbIA processing pipeline.
+:page-tags: reference, components, loaders
+:repo-url: https://github.com/InditexTech/cerbia
+
+// Source: docs/content/docs/components/loaders/index.mdx; implementation: packages/cerbia-core/src/cerbia/core/loaders/.
+
+Loaders produce `Entry` values for a `Runner`. A loader defines where text comes
+from; preprocessors and scanners operate on the resulting entries. CerbIA Core
+exports `TextLoader` and `FileLoader`.
+
+* xref:components/loaders/text-loader.adoc[TextLoader] loads one string or an
+  ordered list of strings.
+* xref:components/loaders/file-loader.adoc[FileLoader] reads file paths and
+  directory trees.
+
+Configure a loader with `loader: cerbia.core.loaders.ClassName` and optional
+`init_args`. See xref:configuration.adoc[Configuration] for loader records and
+xref:architecture.adoc[Architecture] for the pipeline order.

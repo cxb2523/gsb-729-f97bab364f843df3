@@ -1,0 +1,38 @@
+= XSS scanner
+:description: Detect encoded HTML and script injection vectors with optional markup-context awareness.
+:page-tags: Reference, Scanner
+
+`cerbia.core.scanners.XssScanner` detects HTML and script injection vectors. It normalizes HTML entities, percent encoding, and Unicode escapes before checking its built-in patterns.
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`html_context_aware`
+|`false`
+|Exclude matches inside `<code>`, `<pre>`, and `<textarea>` ranges.
+
+|`severity`
+|`HIGH`
+|Finding severity.
+
+|`action`
+|`BLOCK`
+|Finding action.
+
+|`content_types`
+|`[TEXT, CODE]`
+|Accepted content types.
+|===
+
+The highest matched vector score becomes the result score. The rationale lists up to five vector names and positions. Context-aware mode is useful when an application deliberately displays code examples and wants to reduce findings inside those markup regions.
+
+Normalization happens before pattern matching, so encoded forms of common HTML and script vectors are evaluated as well. Context-aware mode is a false-positive reduction tool, not an HTML sanitizer; the scanner reports findings and leaves application-side rendering decisions to the caller.
+
+[source,yaml]
+----
+scanners:
+  - scanner: cerbia.core.scanners.XssScanner
+    init_args:
+      html_context_aware: true
+----

@@ -1,0 +1,40 @@
+= Whitespace normalization
+:description: Normalize spaced, tabbed, and repeated whitespace patterns while preserving entry lineage.
+:page-tags: reference, components, preprocessors
+:repo-url: https://github.com/InditexTech/cerbia
+
+// Source: docs/content/docs/components/preprocessors/whitespace-normalization.mdx; implementation: packages/cerbia-core/src/cerbia/core/preprocessors/whitespace_normalization/.
+
+`cerbia.core.preprocessors.WhitespaceNormalizationPreprocessor` reduces
+whitespace patterns commonly used to split words or hide instructions while
+preserving the entry's source and lineage.
+
+For each entry, it applies a fixed sequence: replaces mid-line tabs, rejoins
+letter-spaced text, collapses long space runs, then collapses long newline runs.
+It returns the original entry object when no rule changes the text. Otherwise,
+it creates a derived entry and records the applied transformations in
+`metadata.preprocessors["whitespace_normalization"]`.
+
+== Parameters
+
+|===
+|Parameter |Default |Meaning
+
+|`max_consecutive_spaces` |`6` |A run of at least this many spaces is collapsed to one space.
+|`max_consecutive_newlines` |`6` |A run of at least this many newlines is collapsed to two newlines.
+|===
+
+[source,yaml]
+----
+preprocessors:
+  - preprocessor: cerbia.core.preprocessors.WhitespaceNormalizationPreprocessor
+    init_args:
+      max_consecutive_spaces: 6
+      max_consecutive_newlines: 6
+----
+
+Run this preprocessor before text-oriented scanners when inputs can contain
+letter-spaced words, excessive blank space, or tab-based obfuscation. It
+preserves entry count and ordering. See
+xref:components/preprocessors/speculative-decoding.adoc[Speculative decoding]
+for decoding-based transformations.

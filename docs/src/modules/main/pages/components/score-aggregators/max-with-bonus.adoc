@@ -1,0 +1,31 @@
+= Maximum score with bonus
+:description: Combine the highest blocking score with a configurable bonus for each additional blocking finding.
+:page-tags: Reference, Score aggregator
+
+`cerbia.core.score_aggregators.MaxWithBonusScoreAggregator` starts with the largest severity-weighted blocking score and adds a bonus for every additional blocking score. The result is capped at `1.0`.
+
+[source,text]
+----
+aggregate = min(1.0, max(scores) + bonus × (len(scores) - 1))
+----
+
+[options="header"]
+|===
+|Parameter |Default |Meaning
+
+|`bonus`
+|`0.05`
+|Increment added for each score after the first.
+|===
+
+Negative values are accepted and can lower the result below zero; the implementation only caps the upper bound.
+
+For `[0.80, 0.60, 0.40]` and `bonus: 0.05`, the aggregate is `0.90`. An empty list produces `0.0`.
+
+[source,yaml]
+----
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MaxWithBonusScoreAggregator
+  init_args:
+    bonus: 0.05
+----

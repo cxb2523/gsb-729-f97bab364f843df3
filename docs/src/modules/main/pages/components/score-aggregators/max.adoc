@@ -1,0 +1,18 @@
+= Maximum score aggregator
+:description: Use the highest severity-weighted blocking score as the aggregate gate score.
+:page-tags: Reference, Score aggregator
+
+`cerbia.core.score_aggregators.MaxScoreAggregator` implements worst-case aggregation: the aggregate is the largest severity-weighted blocking score.
+
+[source,text]
+----
+aggregate = max(scores)
+----
+
+For example, `[0.20, 0.85, 0.45]` produces `0.85`. An empty list produces `0.0`. This is the simplest choice when one high-confidence blocking finding is enough to determine the result.
+
+[source,yaml]
+----
+score_aggregator:
+  score_aggregator: cerbia.core.score_aggregators.MaxScoreAggregator
+----

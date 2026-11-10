@@ -1,0 +1,188 @@
+= Custom components
+:description: Define and load custom pipeline components from fully qualified Python classes in configuration.
+:page-tags: reference, components, extension
+:repo-url: https://github.com/InditexTech/cerbia
+
+// Source: docs/content/docs/components/custom-components/index.mdx.
+
+CerbIA can construct custom loaders, preprocessors, scanners, and score
+aggregators from configuration. A custom class does not need to inherit from a
+CerbIA base class. Factories check the required runtime-checkable protocol when
+they construct the instance.
+
+Use a custom component when the built-in xref:components/loaders.adoc[loaders],
+xref:components/preprocessors.adoc[preprocessors],
+xref:components/scanners.adoc[scanners], or
+xref:components/score-aggregators.adoc[score aggregators] do not fit the required
+input, transformation, detection, or scoring behavior.
+
+== Configuration and runtime model
+
+Configure a custom class with a fully qualified import path. Install the class
+in the Python environment that runs CerbIA, and put constructor arguments under
+`init_args`.
+
+[source,yaml]
+----
+name: custom-components
+
+loaders:
+  - loader: your_package.components.PolicyLoader
+    init_args:
+      values: ["first value", "second value"]
+
+preprocessors:
+  - preprocessor: your_package.components.PolicyPreprocessor
+    init_args: {}
+
+scanners:
+  - scanner: your_package.components.CompanyPolicyScanner
+    init_args:
+      blocked_phrase: "internal only"
+
+score_aggregator:
+  score_aggregator: your_package.components.HighestScore
+  init_args: {}
+----
+
+`Runner` constructs loaders, preprocessors, and the configured gate
+(`SimpleGate` for simple configuration or `CascadeGate` for a cascade).
+It evaluates each post-preprocessing entry with that gate. See xref:configuration.adoc[Configuration] and
+xref:architecture.adoc[Architecture] for the full lifecycle.
+
+`cerbia validate CONFIG.yaml` checks the YAML schema, imports and constructs the
+classes, and verifies that their instances satisfy the expected contracts. It
+does not call loaders or scanners, but constructors can initialize resources or
+execute arbitrary code; validate only trusted configurations. CerbIA uses dotted imports. It does not
+discover plugins through entry points, directory scanning, or registration.
+
+== Contract reference
+
+|===
+|Component |Required contract
+
+|Loader |`load() -> list[Entry]`
+|Preprocessor |`preprocessor_id: str`, `preprocessor_name: str`, and `process(entries: list[Entry]) -> list[Entry]`
+|Scanner |`scanner_id: str`, `scanner_name: str`, `severity: Severity`, `action: Action`, `content_types: tuple[ContentType, ...] \| None`, and `scan(text: str) -> ScanOutcome`
+|Score aggregator |`compute(scores) -> float`
+|===
+
+The factory passes `init_args` as constructor keyword arguments. Root
+configuration validation does not check component-specific argument names or
+values. Constructor errors occur when CerbIA builds the component.
+
+== Custom scanner example
+
+A scanner returns a `ScanOutcome`. When `SimpleGate` creates a `Finding`, it
+adds the scanner identity, severity, and action. Routing skips are recorded
+separately as `SkippedScanner` values.
+
+[source,python]
+----
+from cerbia.core.models.scans import ScanOutcome
+from cerbia.core.types import Action, ContentType, Severity
+
+
+class CompanyPolicyScanner:
+    scanner_id = "company_policy"
+    scanner_name = "Company policy"
+    severity = Severity.HIGH
+    action = Action.BLOCK
+    content_types = (ContentType.TEXT,)
+
+    def __init__(self, blocked_phrase: str) -> None:
+        self._blocked_phrase = blocked_phrase.lower()
+
+    def scan(self, text: str) -> ScanOutcome:
+        if self._blocked_phrase in text.lower():
+            return ScanOutcome(
+                risk_score=1.0,
+                rationale="Blocked company-policy phrase found",
+            )
+
+        return ScanOutcome(risk_score=0.0, rationale="No company-policy phrase found")
+----
+
+Configure the scanner with its stable package-level import path:
+
+[source,yaml]
+----
+scanners:
+  - scanner: your_package.components.CompanyPolicyScanner
+    init_args:
+      blocked_phrase: "internal only"
+----
+
+Set `content_types` to `None` to accept every content type. A known incompatible
+entry type is skipped and recorded in a simple gate; a cascade treats it as an
+operational fault under `on_scanner_error`. Entries with `unknown` content type are
+accepted by every scanner. Put scanner configuration in the constructor, not in
+`scan()`.
+
+== Other component skeletons
+
+=== Loader
+
+Loaders return a flat list of `Entry` values. Each entry needs `text` and
+`source`; field path, metadata, and content type have defaults.
+
+[source,python]
+----
+from cerbia.core.models.entries import Entry
+
+
+class PolicyLoader:
+    def __init__(self, values: list[str]) -> None:
+        self._values = values
+
+    def load(self) -> list[Entry]:
+        return [Entry(text=value, source="policy") for value in self._values]
+----
+
+=== Preprocessor
+
+Preprocessors receive the complete current entry list and return the complete
+next list. They can transform, remove, reorder, or expand entries. When changing
+an entry while retaining its origin and lineage, use `Entry.derive()`.
+
+[source,python]
+----
+from cerbia.core.models.entries import Entry
+
+
+class PolicyPreprocessor:
+    preprocessor_id = "policy_preprocessor"
+    preprocessor_name = "Policy preprocessor"
+
+    def process(self, entries: list[Entry]) -> list[Entry]:
+        return [entry.derive(entry.text.strip(), self.preprocessor_id) for entry in entries]
+----
+
+=== Score aggregator
+
+Score aggregators receive severity-weighted scores from positive `BLOCK`
+findings. Return a finite composite score in the range from `0.0` to `1.0`.
+
+[source,python]
+----
+class HighestScore:
+    def compute(self, scores: list[float]) -> float:
+        return max(scores, default=0.0)
+----
+
+== Integration constraints
+
+* `Runner` requires a configured loader and scanners. Every cascade stage also
+  requires at least one own `BLOCK` scanner and unique runtime scanner IDs.
+* Results correspond to post-preprocessing entries. A custom preprocessor can
+  change the number and order of result entries.
+* Scanner exceptions follow the configured `on_scanner_error` policy. See
+  xref:gate.adoc[Gates].
+* `url_registry` is a scanner-specific integration point. `Runner` passes it
+  only to scanner constructors that declare that parameter. It is not a general
+  dependency-injection mechanism.
+
+For a reusable, runnable loader implementation, see the
+link:{repo-url}/blob/main/examples/custom-loader[custom loader example]. See
+xref:configuration.adoc[Configuration] for YAML records and `init_args`, and
+xref:architecture.adoc[Architecture] for component ownership and data flow.

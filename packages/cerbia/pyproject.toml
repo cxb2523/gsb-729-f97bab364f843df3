@@ -1,0 +1,59 @@
+[project]
+name = "cerbia"
+version = "0.6.1.dev0"
+description = "Reusable LLM security scanning library — language-agnostic guardrails for AI agents"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [
+    { name = "Sergio Bugallo Enjamio", email = "sergiobe@inditex.com" },
+    { name = "Mario Escobedo Del Rio", email = "marioer@inditex.com" },
+    { name = "Jesús Manuel Maneiro Figueroa", email = "jesusmmfi@inditex.com" },
+]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+dependencies = ["cerbia-core==0.6.0"]
+
+[project.optional-dependencies]
+cli = ["cerbia-cli==0.6.0"]
+ml = ["cerbia-ml==0.6.0"]
+presidio = ["cerbia-presidio==0.6.0"]
+protectai = ["cerbia-protectai==0.6.0"]
+all = [
+    "cerbia-cli==0.6.0",
+    "cerbia-ml==0.6.0",
+    "cerbia-presidio==0.6.0",
+    "cerbia-protectai==0.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/InditexTech/cerbia"
+Repository = "https://github.com/InditexTech/cerbia"
+Issues = "https://github.com/InditexTech/cerbia/issues"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
+
+[tool.uv.sources]
+cerbia-core = { workspace = true }
+cerbia-cli = { workspace = true }
+cerbia-ml = { workspace = true }
+cerbia-presidio = { workspace = true }
+cerbia-protectai = { workspace = true }
