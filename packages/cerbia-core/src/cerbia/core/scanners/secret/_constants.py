@@ -1,0 +1,10 @@
+import re
+
+BASE64_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
+HEX_CHARS = frozenset("0123456789abcdefABCDEF")
+
+BASE64_ENTROPY_THRESHOLD = 4.5
+HEX_ENTROPY_THRESHOLD = 3.0
+ENTROPY_MIN_LENGTH = 20
+
+HIGH_ENTROPY_PATTERN = re.compile(r"[A-Za-z0-9+/=]{20,}|[0-9a-fA-F]{20,}")

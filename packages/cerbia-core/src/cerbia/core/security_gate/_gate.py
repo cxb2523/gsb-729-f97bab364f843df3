@@ -7,6 +7,7 @@ from ..scanners import Scanner
 from ..score_aggregators import ScoreAggregator
 from ..types import Action, ContentType, ScannerErrorPolicy
 from ._execution import CompletedScan, FailedScan, UnsupportedScan, execute_scanner
+from ._explanation import NEAR_ZERO_ABS_TOL, SCANNER_FAILURE_RATIONALE_PREFIX, explain_gate_score
 from ._models import GateVerdict
 from ._results import build_rationale
 
@@ -69,7 +70,7 @@ class SimpleGate:
             content_type (ContentType): Content type metadata used to skip incompatible scanners.
 
         Returns:
-            GateVerdict: Aggregated verdict with individual findings.
+            GateVerdict: Aggregated verdict with individual findings and a structured score explanation.
 
         Raises:
             Exception: If a scanner raises under the FAIL policy or the score aggregator raises during aggregation;
@@ -187,7 +188,7 @@ class SimpleGate:
         if finding is None:
             return False
 
-        if math.isclose(finding.risk_score, 0.0, abs_tol=1e-9):
+        if math.isclose(finding.risk_score, 0.0, abs_tol=NEAR_ZERO_ABS_TOL):
             return False
 
         weighted = finding.risk_score * finding.severity.weight
@@ -204,12 +205,14 @@ class SimpleGate:
         rationale = build_rationale(is_safe, failed, blocked)
         if scanner_failures:
             is_safe = False
-            rationale = f"Scanner execution failed: {', '.join(scanner_failures)}"
+            rationale = f"{SCANNER_FAILURE_RATIONALE_PREFIX}{', '.join(scanner_failures)}"
 
-        return GateVerdict(
+        verdict = GateVerdict(
             is_safe=is_safe,
             score=aggregated_score,
             rationale=rationale,
             findings=findings,
             skipped_scanners=skipped,
         )
+        explanation = explain_gate_score(verdict, self.threshold, scanner_failures=scanner_failures)
+        return verdict.model_copy(update={"explanation": explanation})

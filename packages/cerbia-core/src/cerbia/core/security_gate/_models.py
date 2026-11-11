@@ -1,9 +1,10 @@
 from typing import Self
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ..models.scans import Finding, SkippedScanner
 from ..models.stages import StageResult, validate_stages
+from ._explanation import GateScoreExplanation
 
 
 class GateVerdict(BaseModel):
@@ -18,6 +19,8 @@ class GateVerdict(BaseModel):
         skipped_scanners (list[SkippedScanner]): List of scanners that were skipped due to incompatible content types or
             errors under the simple gate's SKIP policy; empty for cascades.
         stages (tuple[StageResult, ...] | None): Ordered cascade stage summaries; None for a simple gate.
+        explanation (GateScoreExplanation | None): Structured explanation of the simple gate's score
+            aggregation; None for cascades and omitted from serialization when None.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -28,6 +31,7 @@ class GateVerdict(BaseModel):
     findings: list[Finding]
     skipped_scanners: list[SkippedScanner]
     stages: tuple[StageResult, ...] | None = None
+    explanation: GateScoreExplanation | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @model_validator(mode="after")
     def validate_stage_results(self) -> Self:
